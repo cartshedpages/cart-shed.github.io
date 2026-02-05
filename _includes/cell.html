@@ -1,0 +1,8 @@
+<div class="cell pointer" id="item_{{ item.name | remove:' '}}">
+
+<div class="gallery_img">
+<center><img class="lazy-image" src="/static/images/spacer.png" data-defer-src="http://images.cart-shed.com/image?src={{ item.image }}&width=176" alt="{{ item.name }}" border="0" /></center>
+</div>
+<div class="gallery_description">{{ item.description }}{% if item.copyright %}<br/><span class="copyright">© {{ item.copyright }}</span>{% endif %}</div>
+
+</div>

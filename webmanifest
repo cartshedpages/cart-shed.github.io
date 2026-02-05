@@ -1,0 +1,25 @@
+{
+    "short_name": "Cart Shed Research",
+    "name": "Cart Shed Research Partnership",
+    "icons": [
+        {
+            "src": "/static/images/cart-shed.svg",
+            "type": "image/svg+xml",
+            "sizes": "512x512"
+        },
+        {
+            "src": "/static/images/cart-shed16.png",
+            "type": "image/png",
+            "sizes": "16x16"
+        },
+        {
+            "src": "/static/images/cart-shed32.png",
+            "type": "image/png",
+            "sizes": "32x32"
+        } 
+    ],
+    "start_url": "/",
+    "background_color": "#ffffff",
+    "display": "standalone",
+    "description": "It's all about Cart Shed Research"
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<head>
+    {% include head.html %}
+</head>
+{% include analytics.html %}
+
+<body>
+<a name="top"></a>
+    
+{% include header.md %}
+
+<div id="page_content" markdown="1">
+{{ content }}
+
+<hr>
+
+<div id="footer" markdown="1">
+
+    <ul>
+        <li><a href="/terms.html">Terms & Conditions</a></li>
+        <li><a href="/privacy.html">Privacy policy</a></li>
+        <li><a href="/cookies.html">Cookies</a></li>
+    </ul>
+
+</div>
+
+</div>
+    
+
+    <noscript>
+        <div class="noscript">
+	        <p>This site requires JavaScript. Please enable JavaScript in you browser settings.</p>
+	    </div>
+    </noscript>
+{% include cookie-consent.html %}
+</body>
+
+</html>
