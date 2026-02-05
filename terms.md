@@ -3,15 +3,15 @@ title: Terms and conditions
 layout: default
 ---
 
-# Terms & Conditions of sale
+# Terms & Conditions of use
 
 ## Terms
 
-**"Windsor Rocker"** and **"The Windsor Rocker Company"** are brand names of [Katie Walker Furniture](https://www.katiewalkerfurniture.com). All design rights in the Windsor Rocker belong to Katie Walker Furniture.
+**"Cart Shed"** is  a brand name of [Cart Shed Research](https://www.cart-shed.com). All intellectual property rights described in this site belong to Cart Shed Research unless specifically specified.
 
-**"Us"**, **"we"** and **"our"** refer to The Windsor Rocker Company.
+**"Us"**, **"we"** and **"our"** refer to Cart Shed Research.
 
-**"You"** and **"your"** refer to the purchaser.
+**"You"** and **"your"** refer to the viewer.
 
 ## Pricing & payment
 
