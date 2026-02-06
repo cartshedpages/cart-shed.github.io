@@ -17,15 +17,13 @@ layout: default
 
 Prices charged will be our current price on the day on which the order is placed unless otherwise stated in writing by us. We reserve the right to change our prices at any time without prior notification.
 
-We offer a 20% discount to trade buyers and a 10% discount to [Woodland Heritage](https://www.woodlandheritage.org/join-us){:target="-new"} members.
-
 If we supply a quote containing prices which are different from our list price then this price is valid for 30 days from the date of the quotation.
 
-For non-stock (bespoke) items a non-refundable 50% deposit is payable with order and the balance received in full for all orders prior to delivery.
+For first commissions, a non-refundable 50% deposit is payable with order and the balance will be invoiced on a monthly basis..
 
-Where your Windsor Rocker has been ordered to a bespoke specification, it is your responsibility to verify that this specification is correct as outlined in the invoice provided by us prior to your making the deposit payment.
+It is your responsibility to verify that any specification is correct as outlined in the invoice provided by us prior to your placing an order.
 
-Are invoices all include VAT. We are registered for UK VAT with registration number 644 6602 36.
+Are invoices all include VAT. We are registered for UK VAT with registration number 368 5331 74.
 
 ## Non-payment
 
@@ -33,7 +31,7 @@ Should you pay any initial invoice, either for a bespoke specification or for an
 
 ## Cancellation
 
-If you wish to cancel any order before we have arranged shipping, we will refund you the full amount paid. If your order is for a bespoke specification or for an out of stock item then we will only refund you the full amount paid to date if we have not started manufacture of your Windsor Rocker.
+If you wish to cancel any commission before we have started work, we will refund you the full amount paid. If your order is for a bespoke specification or for an out of stock item then we will only refund you the full amount paid to date if we have not started manufacture of your Windsor Rocker.
 
 We strongly advise you to contact us as soon as decide to cancel and we will do everything we can to accommodate your change of mind, regardless of the circumstance.
 

@@ -47,6 +47,8 @@ Some of our current work includes:
 * Management of a contribution into an EU project on recyclable bio-composites
 * The construction of a tiny house with local sustainable materials
 * The development of a blockchain based system for the management of deep leasing
+* The development of low weight, low cost ply structures
+* A study into the growth of UK timber as a viable crop for anything other than burning
 
 </section>
 
