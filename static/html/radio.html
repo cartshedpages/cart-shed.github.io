@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Alarm Clock</title>
+        <link rel="stylesheet" href="../style/radio.css" />
+    </head>
+    <body>
+        <div class="container">
+            <h1>Alarm Clock</h1>
+            <div class="clock" id="clock">00:00:00</div>
+            <div class="next-alarm" id="nextAlarm">No alarms set</div>
+
+            <div class="controls">
+                <button id="muteBtn">
+                    Mute <span class="mute-indicator" id="muteIndicator"></span>
+                </button>
+                <button id="testSound">Test Selected Sound</button>
+                <button id="stopSound">Stop Sound</button>
+                <span id="unlockStatus" class="status"></span>
+            </div>
+
+            <div class="alarm-form">
+                <input type="time" id="alarmTime" />
+                <div class="day-select" id="daySelect">
+                    <label><input type="checkbox" value="0" /> Sun</label>
+                    <label><input type="checkbox" value="1" /> Mon</label>
+                    <label><input type="checkbox" value="2" /> Tue</label>
+                    <label><input type="checkbox" value="3" /> Wed</label>
+                    <label><input type="checkbox" value="4" /> Thu</label>
+                    <label><input type="checkbox" value="5" /> Fri</label>
+                    <label><input type="checkbox" value="6" /> Sat</label>
+                </div>
+            </div>
+
+            <div class="sound-controls">
+                <select id="soundSelect">
+                    <option value="">-- Select Sound --</option>
+                    <option value="tone">Tone (autoplay)</option>
+                    <option value="beep">Beep (autoplay)</option>
+                    <option
+                        value="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA"
+                    >
+                        Simple Beep (autoplay)
+                    </option>
+                    <option value="---STREAMS---" disabled>
+                        --- Radio (autoplay after click) ---
+                    </option>
+                    <option
+                        value="http://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=96000.norewind.m3u8"
+                    >
+                        BBC Radio 1
+                    </option>
+                    <option
+                        value="http://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio=96000.norewind.m3u8"
+                    >
+                        BBC Radio 2
+                    </option>
+                    <option
+                        value="http://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio=96000.norewind.m3u8"
+                    >
+                        BBC Radio 3
+                    </option>
+                    <option
+                        value="http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio=96000.norewind.m3u8"
+                    >
+                        BBC Radio 4
+                    </option>
+                    <option
+                        value="http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio=96000.norewind.m3u8"
+                    >
+                        BBC Radio 5 Live
+                    </option>
+                </select>
+            </div>
+            <button id="addAlarm">Add Alarm</button>
+
+            <p class="info">
+                <strong>Tip:</strong> Click "Test" or any button to unlock
+                autoplay for radio streams in this session.
+            </p>
+
+            <h2>Alarms</h2>
+            <div class="alarms-list" id="alarmsList"></div>
+        </div>
+
+        <script src="../js/radio.js"></script>
+    </body>
+</html>

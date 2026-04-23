@@ -1,0 +1,173 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: Arial, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    transition: background 0.5s;
+}
+body.dimmed {
+    background: #0a0a14;
+}
+body.dimmed * {
+    color: #666 !important;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+h1 {
+    text-align: center;
+    margin: 20px 0;
+}
+h2 {
+    margin: 20px 0 10px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+.clock {
+    text-align: center;
+    font-size: 3rem;
+    margin: 20px 0;
+}
+.next-alarm {
+    text-align: center;
+    font-size: 1.2rem;
+    margin: 10px 0;
+    color: #90ee90;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    align-items: center;
+}
+button,
+input,
+select {
+    padding: 8px 12px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background: #16213e;
+    color: #e0e0e0;
+}
+button {
+    cursor: pointer;
+    background: #0f3460;
+}
+button:hover {
+    background: #0096c7;
+}
+
+.status {
+    font-size: 0.8rem;
+    color: #ff9900;
+    margin-left: 10px;
+}
+.info {
+    font-size: 0.7rem;
+    color: #888;
+    margin: 15px 0;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.alarm-form {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.day-select {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.day-select label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+}
+
+.alarms-list {
+    margin: 20px 0;
+}
+.alarm-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #16213e;
+    margin: 5px 0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.alarm-item:hover {
+    background: #1f2b4d;
+}
+.alarm-time {
+    font-weight: bold;
+}
+.alarm-days {
+    font-size: 0.8rem;
+    color: #999;
+}
+.delete-btn {
+    background: #8b0000;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+}
+.delete-btn:hover {
+    background: #aa0000;
+}
+
+.sound-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 10px;
+}
+select {
+    min-width: 200px;
+}
+select option[disabled] {
+    color: #666;
+    font-weight: bold;
+    background: #0f3460;
+}
+
+.mute-indicator {
+    color: #ff4444;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+@media (max-width: 600px) {
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .alarm-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .day-select {
+        justify-content: center;
+    }
+    .clock {
+        font-size: 2.2rem;
+    }
+}
