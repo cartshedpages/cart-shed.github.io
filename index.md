@@ -49,7 +49,7 @@ Some of our current work includes:
 - The development of a blockchain based system for the management of deep leasing
 - The development of low weight, low cost ply structures
 - A study into the growth of UK timber as a viable crop for anything other than burning
-- A simple [radio](static/radio.html)
+- A simple [radio](static/html/radio.html)
 
 </section>
 
