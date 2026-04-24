@@ -289,13 +289,14 @@ function getUpcomingAlarm() {
     const alarmTime = hours * 60 + minutes;
 
     for (const day of alarm.days) {
-      let daysDiff =
-        day < currentDay || (day === currentDay && alarmTime <= currentTime)
-          ? 7
-          : 0;
-      const totalMinutes = daysDiff * 24 * 60 + (alarmTime - currentTime);
+      // Calculate days until this alarm day (0-6)
+      let daysUntil = (day - currentDay + 7) % 7;
+      // Calculate total minutes until this occurrence
+      let totalMinutes = daysUntil * 1440 + (alarmTime - currentTime);
+      // If negative, add a week
+      if (totalMinutes < 0) totalMinutes += 7 * 1440;
 
-      if (totalMinutes >= 0 && totalMinutes < minDiff) {
+      if (totalMinutes < minDiff) {
         minDiff = totalMinutes;
         nextAlarm = alarm;
       }
@@ -331,6 +332,7 @@ function addAlarm() {
 
   saveAlarms();
   renderAlarms();
+  updateNextAlarm();
 
   alarmTimeEl.value = "";
   daySelectEl
@@ -346,6 +348,7 @@ function deleteAlarm(id) {
   alarms = alarms.filter((a) => a.id !== id);
   saveAlarms();
   renderAlarms();
+  updateNextAlarm();
   if (playingAlarmId === id) stopAllSound();
 }
 
@@ -486,13 +489,14 @@ function getNextAlarm() {
     const alarmTime = hours * 60 + minutes;
 
     for (const day of alarm.days) {
-      let daysDiff =
-        day < currentDay || (day === currentDay && alarmTime <= currentTime)
-          ? 7
-          : 0;
-      const totalMinutes = daysDiff * 24 * 60 + (alarmTime - currentTime);
+      // Calculate days until this alarm day (0-6)
+      let daysUntil = (day - currentDay + 7) % 7;
+      // Calculate total minutes until this occurrence
+      let totalMinutes = daysUntil * 1440 + (alarmTime - currentTime);
+      // If negative, add a week
+      if (totalMinutes < 0) totalMinutes += 7 * 1440;
 
-      if (totalMinutes >= 0 && totalMinutes < minDiff) {
+      if (totalMinutes < minDiff) {
         minDiff = totalMinutes;
         nextAlarm = {
           time: alarm.time,
