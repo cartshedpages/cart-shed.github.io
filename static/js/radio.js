@@ -6,6 +6,7 @@ let toneOscillator = null;
 let testAudio = null;
 let audio = null;
 let playingAlarmId = null;
+let editingAlarmId = null;
 let lastInteraction = Date.now();
 let userHasInteracted = false;
 
@@ -36,6 +37,9 @@ const unlockStatusEl = document.getElementById("unlockStatus");
 const alarmTimeEl = document.getElementById("alarmTime");
 const daySelectEl = document.getElementById("daySelect");
 const addAlarmBtn = document.getElementById("addAlarm");
+const cancelAlarmBtn = document.getElementById("cancelAlarm");
+const showAddAlarmBtn = document.getElementById("showAddAlarm");
+const alarmFormContainer = document.getElementById("alarmFormContainer");
 const muteBtn = document.getElementById("muteBtn");
 const muteIndicatorEl = document.getElementById("muteIndicator");
 const testSoundBtn = document.getElementById("testSound");
@@ -50,6 +54,7 @@ function init() {
   updateNextAlarm();
   renderAlarms();
   initAudioContext();
+  populateSoundSelect();
 
   setInterval(tick, 1000);
   setInterval(checkAlarms, 1000);
@@ -57,9 +62,14 @@ function init() {
 
   // Event listeners
   addAlarmBtn.addEventListener("click", addAlarm);
+  cancelAlarmBtn.addEventListener("click", hideAlarmForm);
+  showAddAlarmBtn.addEventListener("click", showAlarmForm);
   muteBtn.addEventListener("click", toggleMute);
   testSoundBtn.addEventListener("click", testSound);
   stopSoundBtn.addEventListener("click", stopAllSound);
+
+  // Start with alarm form hidden
+  hideAlarmForm();
 
   // Track ANY user interaction to unlock autoplay
   const unlockInteraction = () => {
@@ -86,6 +96,41 @@ function init() {
 
 function updateUnlockStatus() {
   unlockStatusEl.textContent = userHasInteracted ? "✓ Autoplay unlocked" : "";
+}
+
+function showAlarmForm() {
+  alarmFormContainer.classList.remove("hidden");
+  alarmFormContainer.classList.add("visible");
+}
+
+function hideAlarmForm() {
+  alarmFormContainer.classList.remove("visible");
+  alarmFormContainer.classList.add("hidden");
+  editingAlarmId = null;
+}
+
+function editAlarm(id) {
+  const alarm = alarms.find((a) => a.id === id);
+  if (!alarm) return;
+
+  editingAlarmId = alarm.id;
+  alarmTimeEl.value = alarm.time;
+
+  // Clear all day checkboxes first
+  daySelectEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.checked = false;
+  });
+
+  // Check the days for this alarm
+  alarm.days.forEach((day) => {
+    const checkbox = daySelectEl.querySelector(
+      `input[type="checkbox"][value="${day}"]`,
+    );
+    if (checkbox) checkbox.checked = true;
+  });
+
+  soundSelectEl.value = alarm.url;
+  showAlarmForm();
 }
 
 function initAudioContext() {
@@ -142,7 +187,15 @@ function getSelectedSoundUrl() {
   return soundSelectEl.value;
 }
 
-// ===== ALARM POPUP REMOVED - using autoplay after interaction =====
+function populateSoundSelect() {
+  // Add radio stations from radiostations.js
+  Object.entries(RADIO_STATIONS).forEach(([url, name]) => {
+    const option = document.createElement("option");
+    option.value = url;
+    option.textContent = name;
+    soundSelectEl.appendChild(option);
+  });
+}
 
 // ===== AUDIO PLAYBACK =====
 function createAudio(url) {
@@ -207,39 +260,48 @@ function playSingleBeep() {
 
 function testSound() {
   stopAllSound();
-  const url = getSelectedSoundUrl();
-  if (!url) return;
+  let url;
 
-  if (url === "tone") {
-    playAlarmBeep();
-    playingAlarmId = "test";
-    return;
-  }
-  if (url === "beep") {
-    playSingleBeep();
-    return;
-  }
-  if (url.startsWith("data:")) {
-    testAudio = createAudio(url);
-    testAudio.loop = true;
-    testAudio.play().catch(console.error);
-    return;
-  }
-
-  // For streams - play if user has interacted
-  if (userHasInteracted) {
-    testAudio = createAudio(url);
-    testAudio
-      .play()
-      .then(() => {
-        unlockStatusEl.textContent = "✓ Stream playing";
-      })
-      .catch((e) => {
-        unlockStatusEl.textContent = "⚠ Stream needs unlock";
-      });
+  // If alarm form is visible, use the selected sound from form
+  if (alarmFormContainer.classList.contains("visible")) {
+    url = getSelectedSoundUrl();
   } else {
-    unlockStatusEl.textContent = "⚠ Click any button first to unlock streams";
+    // Otherwise, get the next alarm's sound
+    const nextAlarm = getUpcomingAlarm();
+    if (nextAlarm) url = nextAlarm.url;
   }
+
+  if (!url) return;
+  playAlarmSound(url);
+}
+
+// Get the upcoming alarm object (not just display info)
+function getUpcomingAlarm() {
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const currentDay = now.getDay();
+
+  let nextAlarm = null;
+  let minDiff = Infinity;
+
+  for (const alarm of alarms) {
+    const [hours, minutes] = alarm.time.split(":").map(Number);
+    const alarmTime = hours * 60 + minutes;
+
+    for (const day of alarm.days) {
+      let daysDiff =
+        day < currentDay || (day === currentDay && alarmTime <= currentTime)
+          ? 7
+          : 0;
+      const totalMinutes = daysDiff * 24 * 60 + (alarmTime - currentTime);
+
+      if (totalMinutes >= 0 && totalMinutes < minDiff) {
+        minDiff = totalMinutes;
+        nextAlarm = alarm;
+      }
+    }
+  }
+  return nextAlarm;
 }
 
 // ===== ALARMS =====
@@ -255,8 +317,18 @@ function addAlarm() {
   const url = getSelectedSoundUrl();
   if (!url) return alert("Please select a sound");
 
-  const alarm = { id: Date.now(), time, days, url };
-  alarms.push(alarm);
+  if (editingAlarmId) {
+    // Update existing alarm
+    const index = alarms.findIndex((a) => a.id === editingAlarmId);
+    if (index !== -1) {
+      alarms[index] = { id: editingAlarmId, time, days, url };
+    }
+  } else {
+    // Add new alarm
+    const alarm = { id: Date.now(), time, days, url };
+    alarms.push(alarm);
+  }
+
   saveAlarms();
   renderAlarms();
 
@@ -264,6 +336,10 @@ function addAlarm() {
   daySelectEl
     .querySelectorAll('input[type="checkbox"]')
     .forEach((cb) => (cb.checked = false));
+  soundSelectEl.value = "";
+  editingAlarmId = null;
+
+  hideAlarmForm();
 }
 
 function deleteAlarm(id) {
@@ -308,6 +384,9 @@ function renderAlarms() {
     return;
   }
 
+  // Day names in order: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   alarmsListEl.innerHTML = alarms
     .map((alarm) => {
       const name = getStationName(alarm.url);
@@ -319,33 +398,16 @@ function renderAlarms() {
       <div class="alarm-item" onclick="testAlarm(${alarm.id})">
         <div>
           <div class="alarm-time">${alarm.time} - ${name}${autoPlay ? " ⚡" : ""}</div>
-          <div class="alarm-days">${alarm.days.map((d) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]).join(", ")}</div>
+          <div class="alarm-days">${alarm.days.map((d) => dayNames[d]).join(", ")}</div>
         </div>
-        <button class="delete-btn" onclick="event.stopPropagation(); deleteAlarm(${alarm.id})">Delete</button>
+        <div class="alarm-actions">
+          <button class="edit-btn" onclick="event.stopPropagation(); editAlarm(${alarm.id})">Edit</button>
+          <button class="delete-btn" onclick="event.stopPropagation(); deleteAlarm(${alarm.id})">Delete</button>
+        </div>
       </div>
     `;
     })
     .join("");
-}
-
-function getStationName(url) {
-  const stations = {
-    tone: "Tone",
-    beep: "Beep",
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA":
-      "Simple Beep",
-    "http://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=96000.norewind.m3u8":
-      "BBC Radio 1",
-    "http://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio=96000.norewind.m3u8":
-      "BBC Radio 2",
-    "http://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio=96000.norewind.m3u8":
-      "BBC Radio 3",
-    "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio=96000.norewind.m3u8":
-      "BBC Radio 4",
-    "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio=96000.norewind.m3u8":
-      "BBC Radio 5 Live",
-  };
-  return stations[url] || "Custom";
 }
 
 // ===== ALARM CHECKING =====
@@ -413,6 +475,9 @@ function getNextAlarm() {
   const currentTime = now.getHours() * 60 + now.getMinutes();
   const currentDay = now.getDay();
 
+  // Day names in order: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   let nextAlarm = null;
   let minDiff = Infinity;
 
@@ -431,7 +496,7 @@ function getNextAlarm() {
         minDiff = totalMinutes;
         nextAlarm = {
           time: alarm.time,
-          days: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day],
+          days: dayNames[day],
           diff: totalMinutes,
         };
       }
@@ -445,8 +510,7 @@ function updateNextAlarm() {
   if (next) {
     const hours = Math.floor(next.diff / 60);
     const minutes = Math.floor(next.diff % 60);
-    const seconds = Math.floor((next.diff * 60) % 60);
-    nextAlarmEl.textContent = `Next alarm: ${next.time} on ${next.days} (in ${hours}h ${minutes}m ${seconds}s)`;
+    nextAlarmEl.textContent = `Next alarm: ${next.time} on ${next.days} (in ${hours}h ${minutes}m)`;
   } else {
     nextAlarmEl.textContent = "No alarms set";
   }

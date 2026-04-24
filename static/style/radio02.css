@@ -20,6 +20,10 @@ body.dimmed {
 body.dimmed * {
     color: #600 !important;
 }
+body.dimmed button,
+body.dimmed button * {
+    color: #000 !important;
+}
 
 .container {
     max-width: 800px;
