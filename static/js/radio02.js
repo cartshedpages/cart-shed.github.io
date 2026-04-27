@@ -155,7 +155,11 @@ function tick() {
 
 function updateClock() {
   const now = new Date();
-  clockEl.textContent = now.toLocaleTimeString([], { hour12: false });
+  const timeString = now.toLocaleTimeString([], { hour12: false });
+  // Split into HH:MM and :SS
+  const parts = timeString.split(":");
+  // Format as HH:MM<span class="clock-small">:SS</span>
+  clockEl.innerHTML = `${parts[0]}:${parts[1]}<span class="clock-small">:${parts[2]}</span>`;
 }
 
 function checkInactivity() {
