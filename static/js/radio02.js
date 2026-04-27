@@ -79,6 +79,12 @@ function init() {
     if (audioCtx && audioCtx.state === "suspended") {
       audioCtx.resume().catch(console.error);
     }
+    // Play pending alarm stream if any
+    if (pendingAlarmUrl) {
+      stopAllSound();
+      playAlarmSound(pendingAlarmUrl);
+      pendingAlarmUrl = null;
+    }
   };
   document.addEventListener("click", () => {
     lastInteraction = Date.now();
@@ -144,6 +150,12 @@ function initAudioContext() {
     } catch (e) {
       console.error("Web Audio API not supported:", e);
     }
+  }
+}
+
+function ensureAudioContext() {
+  if (!audioCtx) {
+    initAudioContext();
   }
 }
 
@@ -220,11 +232,19 @@ function stopAllSound() {
     toneOscillator = null;
   }
   playingAlarmId = null;
+  pendingAlarmUrl = null;
+  unlockStatusEl.textContent = "";
 }
 
 function playAlarmBeep() {
   if (!audioCtx || muted) return;
   stopAllSound();
+
+  // Ensure AudioContext is running (for iOS)
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume().catch(console.error);
+    return; // Resume is async, will be called again next tick
+  }
 
   toneOscillator = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
@@ -235,10 +255,11 @@ function playAlarmBeep() {
   toneOscillator.frequency.value = 880;
   gainNode.gain.value = 0.3;
 
-  toneOscillator.start();
+  // Use explicit time for iOS compatibility
+  const now = audioCtx.currentTime;
+  toneOscillator.start(now);
 
   // Pulse the beep
-  const now = audioCtx.currentTime;
   gainNode.gain.setValueAtTime(0.3, now);
   gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
 
@@ -249,6 +270,13 @@ function playAlarmBeep() {
 
 function playSingleBeep() {
   if (!audioCtx || muted) return;
+
+  // Ensure AudioContext is running (for iOS)
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume().catch(console.error);
+    return;
+  }
+
   const oscillator = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
   oscillator.connect(gainNode);
@@ -256,8 +284,9 @@ function playSingleBeep() {
   oscillator.frequency.value = 880;
   oscillator.type = "sine";
   gainNode.gain.value = 0.3;
-  oscillator.start();
-  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+  const now = audioCtx.currentTime;
+  oscillator.start(now);
+  gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
 }
 
 function testSound() {
@@ -274,6 +303,13 @@ function testSound() {
   }
 
   if (!url) return;
+
+  // For streams on iOS, ensure we have user interaction
+  if (url.startsWith("http") && !userHasInteracted) {
+    unlockStatusEl.textContent = "⚠ Tap to test stream";
+    return;
+  }
+
   playAlarmSound(url);
 }
 
@@ -352,6 +388,13 @@ function deleteAlarm(id) {
   renderAlarms();
   updateNextAlarm();
   if (playingAlarmId === id) stopAllSound();
+  if (pendingAlarmUrl) {
+    // Clear pending if deleted alarm matches
+    const deletedAlarm = alarms.find((a) => a.id === id);
+    // Can't find it since we just deleted it, but clear pending anyway
+    pendingAlarmUrl = null;
+    unlockStatusEl.textContent = "";
+  }
 }
 
 // Test alarm when clicked
@@ -415,7 +458,76 @@ function renderAlarms() {
     .join("");
 }
 
+function checkAlarms() {
+  if (muted) {
+    if (audio) stopAllSound();
+    return;
+  }
+
+  const now = new Date();
+  const currentTime = now.toTimeString().substring(0, 5);
+  const currentDay = now.getDay();
+
+  for (const alarm of alarms) {
+    if (
+      alarm.days.includes(currentDay) &&
+      alarm.time === currentTime &&
+      alarm.id !== playingAlarmId
+    ) {
+      const canAutoplay =
+        alarm.url === "tone" ||
+        alarm.url === "beep" ||
+        alarm.url.startsWith("data:") ||
+        userHasInteracted;
+
+      if (canAutoplay) {
+        stopAllSound();
+        playingAlarmId = alarm.id;
+        playAlarmSound(alarm.url);
+      }
+    }
+  }
+}
+=======
 // ===== ALARM CHECKING =====
+let pendingAlarmUrl = null;
+
+function checkAlarms() {
+  if (muted) {
+    if (audio) stopAllSound();
+    return;
+  }
+
+  const now = new Date();
+  const currentTime = now.toTimeString().substring(0, 5);
+  const currentDay = now.getDay();
+
+  for (const alarm of alarms) {
+    if (
+      alarm.days.includes(currentDay) &&
+      alarm.time === currentTime &&
+      alarm.id !== playingAlarmId
+    ) {
+      // Tone/beep/data can autoplay, streams need user interaction on iOS
+      if (alarm.url === "tone" || alarm.url === "beep" || alarm.url.startsWith("data:")) {
+        stopAllSound();
+        playingAlarmId = alarm.id;
+        playAlarmSound(alarm.url);
+      } else if (userHasInteracted) {
+        // Try to play stream
+        stopAllSound();
+        playingAlarmId = alarm.id;
+        playAlarmSound(alarm.url);
+      } else {
+        // Stream alarm firing but no user interaction yet - store for when user taps
+        pendingAlarmUrl = alarm.url;
+        unlockStatusEl.textContent = "⚠ Alarm! Tap to play stream";
+        playingAlarmId = alarm.id;
+      }
+    }
+  }
+}
+============
 function checkAlarms() {
   if (muted) {
     if (audio) stopAllSound();
@@ -450,6 +562,7 @@ function checkAlarms() {
 function playAlarmSound(url) {
   if (muted || !url) return false;
 
+  // Try to play the sound
   if (url === "tone") {
     playAlarmBeep();
     return true;
@@ -459,20 +572,65 @@ function playAlarmSound(url) {
     setTimeout(() => playAlarmBeep(), 0);
     return true;
   }
-  if (url.startsWith("data:")) {
+
+  // For data: URLs and streams - try to play
+  const playPromise = new Promise((resolve, reject) => {
     audio = createAudio(url);
     audio.loop = true;
-    audio.play().catch(console.error);
-    return true;
-  }
-  // Streams - only reached if userHasInteracted is true
-  audio = createAudio(url);
-  audio.loop = true;
-  audio.play().catch((e) => {
-    console.error("Stream play failed:", e);
-    return false;
+
+    // Try to play immediately
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise
+        .then(() => resolve(true))
+        .catch((e) => {
+          console.warn("First play attempt failed:", e);
+          // On iOS, need to retry after user gesture
+          document.addEventListener(
+            "click",
+            function playOnInteraction() {
+              audio
+                .play()
+                .then(() => resolve(true))
+                .catch(reject);
+              document.removeEventListener("click", playOnInteraction);
+            },
+            { once: true },
+          );
+          // Try again in 100ms in case it was just a timing issue
+          setTimeout(() => {
+            audio
+              .play()
+              .then(() => resolve(true))
+              .catch(reject);
+          }, 100);
+        });
+    } else {
+      // No promise returned (older browsers), assume success
+      resolve(true);
+    }
   });
-  return true;
+
+  playPromise
+    .then(() => {
+      unlockStatusEl.textContent = "✓ Playing";
+      return true;
+    })
+    .catch((e) => {
+      console.error("Play failed:", e);
+      unlockStatusEl.textContent = "⚠ Tap to play";
+      // For iOS with streams, show a more noticeable alert
+      if (url.startsWith("http")) {
+        setTimeout(() => {
+          if (audio && audio.paused) {
+            unlockStatusEl.textContent = "⚠ iOS: Tap anywhere to start stream";
+          }
+        }, 500);
+      }
+      return false;
+    });
+
+  return playPromise;
 }
 
 function getNextAlarm() {
