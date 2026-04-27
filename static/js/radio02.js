@@ -7,6 +7,8 @@ let testAudio = null;
 let audio = null;
 let playingAlarmId = null;
 let editingAlarmId = null;
+let pendingAlarmUrl = null;
+let lastAlarmedMinute = -1;
 let lastInteraction = Date.now();
 let userHasInteracted = false;
 
@@ -150,12 +152,6 @@ function initAudioContext() {
     } catch (e) {
       console.error("Web Audio API not supported:", e);
     }
-  }
-}
-
-function ensureAudioContext() {
-  if (!audioCtx) {
-    initAudioContext();
   }
 }
 
@@ -389,9 +385,6 @@ function deleteAlarm(id) {
   updateNextAlarm();
   if (playingAlarmId === id) stopAllSound();
   if (pendingAlarmUrl) {
-    // Clear pending if deleted alarm matches
-    const deletedAlarm = alarms.find((a) => a.id === id);
-    // Can't find it since we just deleted it, but clear pending anyway
     pendingAlarmUrl = null;
     unlockStatusEl.textContent = "";
   }
@@ -458,6 +451,7 @@ function renderAlarms() {
     .join("");
 }
 
+// ===== ALARM CHECKING =====
 function checkAlarms() {
   if (muted) {
     if (audio) stopAllSound();
@@ -467,6 +461,10 @@ function checkAlarms() {
   const now = new Date();
   const currentTime = now.toTimeString().substring(0, 5);
   const currentDay = now.getDay();
+  const currentMinute = now.getHours() * 60 + now.getMinutes();
+
+  // Prevent re-firing the same alarm in the same minute
+  if (currentMinute === lastAlarmedMinute) return;
 
   for (const alarm of alarms) {
     if (
@@ -474,86 +472,30 @@ function checkAlarms() {
       alarm.time === currentTime &&
       alarm.id !== playingAlarmId
     ) {
-      const canAutoplay =
+      lastAlarmedMinute = currentMinute;
+      // Tone/beep/data can autoplay, streams need user interaction on iOS
+      if (
         alarm.url === "tone" ||
         alarm.url === "beep" ||
-        alarm.url.startsWith("data:") ||
-        userHasInteracted;
-
-      if (canAutoplay) {
+        alarm.url.startsWith("data:")
+      ) {
         stopAllSound();
         playingAlarmId = alarm.id;
         playAlarmSound(alarm.url);
-      }
-    }
-  }
-}
-=======
-// ===== ALARM CHECKING =====
-let pendingAlarmUrl = null;
-
-function checkAlarms() {
-  if (muted) {
-    if (audio) stopAllSound();
-    return;
-  }
-
-  const now = new Date();
-  const currentTime = now.toTimeString().substring(0, 5);
-  const currentDay = now.getDay();
-
-  for (const alarm of alarms) {
-    if (
-      alarm.days.includes(currentDay) &&
-      alarm.time === currentTime &&
-      alarm.id !== playingAlarmId
-    ) {
-      // Tone/beep/data can autoplay, streams need user interaction on iOS
-      if (alarm.url === "tone" || alarm.url === "beep" || alarm.url.startsWith("data:")) {
-        stopAllSound();
-        playingAlarmId = alarm.id;
-        playAlarmSound(alarm.url);
+        return; // Only play one alarm per minute
       } else if (userHasInteracted) {
         // Try to play stream
         stopAllSound();
         playingAlarmId = alarm.id;
         playAlarmSound(alarm.url);
+        return; // Only play one alarm per minute
       } else {
         // Stream alarm firing but no user interaction yet - store for when user taps
         pendingAlarmUrl = alarm.url;
         unlockStatusEl.textContent = "⚠ Alarm! Tap to play stream";
         playingAlarmId = alarm.id;
-      }
-    }
-  }
-}
-============
-function checkAlarms() {
-  if (muted) {
-    if (audio) stopAllSound();
-    return;
-  }
-
-  const now = new Date();
-  const currentTime = now.toTimeString().substring(0, 5);
-  const currentDay = now.getDay();
-
-  for (const alarm of alarms) {
-    if (
-      alarm.days.includes(currentDay) &&
-      alarm.time === currentTime &&
-      alarm.id !== playingAlarmId
-    ) {
-      const canAutoplay =
-        alarm.url === "tone" ||
-        alarm.url === "beep" ||
-        alarm.url.startsWith("data:") ||
-        userHasInteracted;
-
-      if (canAutoplay) {
-        stopAllSound();
-        playingAlarmId = alarm.id;
-        playAlarmSound(alarm.url);
+        lastAlarmedMinute = currentMinute;
+        return; // Only play one alarm per minute
       }
     }
   }
