@@ -1,52 +1,64 @@
 // ===== STATE =====
-let alarms = [];
-let muted = false;
-let audioCtx = null;
-let toneOscillator = null;
-let testAudio = null;
-let audio = null;
-let playingAlarmId = null;
-let editingAlarmId = null;
-let pendingAlarmUrl = null;
-let lastAlarmedMinute = -1;
-let lastInteraction = Date.now();
-let userHasInteracted = false;
+var alarms = [];
+var muted = false;
+var audioCtx = null;
+var toneOscillator = null;
+var testAudio = null;
+var audio = null;
+var playingAlarmId = null;
+var editingAlarmId = null;
+var pendingAlarmUrl = null;
+var lastAlarmedMinute = -1;
+var beepInterval = null;
+var beepCount = 0;
+var lastInteraction = Date.now();
+var userHasInteracted = false;
+var isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-// ===== COOKIE UTILITIES (FIXED) =====
+// ===== COOKIE UTILITIES =====
 function getCookie(name) {
-  const cookies = document.cookie.split(";");
-  for (let cookie of cookies) {
-    const [cookieName, cookieValue] = cookie.trim().split("=");
-    if (cookieName === name) {
-      return decodeURIComponent(cookieValue);
+  var cookies = document.cookie.split(";");
+  for (var i = 0; i < cookies.length; i++) {
+    var cookie = cookies[i].trim();
+    if (cookie.indexOf(name + "=") === 0) {
+      return decodeURIComponent(cookie.substring(name.length + 1));
     }
   }
   return null;
 }
 
-function setCookie(name, value, days = 365) {
-  const date = new Date();
+function setCookie(name, value, days) {
+  if (days === undefined) days = 365;
+  var date = new Date();
   date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
-  const expires = "expires=" + date.toUTCString();
-  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; ${expires}; path=/; SameSite=Lax`;
+  var expires = "expires=" + date.toUTCString();
+  document.cookie =
+    name +
+    "=" +
+    encodeURIComponent(value) +
+    "; " +
+    expires +
+    "; path=/; SameSite=Lax";
 }
 
 // ===== DOM ELEMENTS =====
-const clockEl = document.getElementById("clock");
-const nextAlarmEl = document.getElementById("nextAlarm");
-const alarmsListEl = document.getElementById("alarmsList");
-const unlockStatusEl = document.getElementById("unlockStatus");
-const alarmTimeEl = document.getElementById("alarmTime");
-const daySelectEl = document.getElementById("daySelect");
-const addAlarmBtn = document.getElementById("addAlarm");
-const cancelAlarmBtn = document.getElementById("cancelAlarm");
-const showAddAlarmBtn = document.getElementById("showAddAlarm");
-const alarmFormContainer = document.getElementById("alarmFormContainer");
-const muteBtn = document.getElementById("muteBtn");
-const muteIndicatorEl = document.getElementById("muteIndicator");
-const testSoundBtn = document.getElementById("testSound");
-const stopSoundBtn = document.getElementById("stopSound");
-const soundSelectEl = document.getElementById("soundSelect");
+var clockEl = document.getElementById("clock");
+var nextAlarmEl = document.getElementById("nextAlarm");
+var alarmsListEl = document.getElementById("alarmsList");
+var unlockStatusEl = document.getElementById("unlockStatus");
+var alarmTimeEl = document.getElementById("alarmTime");
+var daySelectEl = document.getElementById("daySelect");
+var addAlarmBtn = document.getElementById("addAlarm");
+var cancelAlarmBtn = document.getElementById("cancelAlarm");
+var showAddAlarmBtn = document.getElementById("showAddAlarm");
+var alarmFormContainer = document.getElementById("alarmFormContainer");
+var muteBtn = document.getElementById("muteBtn");
+var muteIndicatorEl = document.getElementById("muteIndicator");
+var testSoundBtn = document.getElementById("testSound");
+var stopSoundBtn = document.getElementById("stopSound");
+var soundSelectEl = document.getElementById("soundSelect");
 
 // ===== INITIALIZE =====
 function init() {
@@ -62,7 +74,6 @@ function init() {
   setInterval(checkAlarms, 1000);
   setInterval(checkInactivity, 1000);
 
-  // Event listeners
   addAlarmBtn.addEventListener("click", addAlarm);
   cancelAlarmBtn.addEventListener("click", hideAlarmForm);
   showAddAlarmBtn.addEventListener("click", showAlarmForm);
@@ -70,76 +81,79 @@ function init() {
   testSoundBtn.addEventListener("click", testSound);
   stopSoundBtn.addEventListener("click", stopAllSound);
 
-  // Start with alarm form hidden
   hideAlarmForm();
 
-  // Track ANY user interaction to unlock autoplay
-  const unlockInteraction = () => {
+  var unlockInteraction = function () {
     userHasInteracted = true;
     updateUnlockStatus();
-    // Resume AudioContext for iOS
     if (audioCtx && audioCtx.state === "suspended") {
-      audioCtx.resume().catch(console.error);
+      audioCtx.resume();
     }
-    // Play pending alarm stream if any
     if (pendingAlarmUrl) {
-      stopAllSound();
+      stopBeepLoop();
       playAlarmSound(pendingAlarmUrl);
       pendingAlarmUrl = null;
+      return;
     }
+    stopBeepLoop();
   };
-  document.addEventListener("click", () => {
+
+  document.addEventListener("click", function () {
     lastInteraction = Date.now();
     unlockInteraction();
   });
-  document.addEventListener("keypress", () => {
+  document.addEventListener("keypress", function () {
     lastInteraction = Date.now();
     unlockInteraction();
   });
-  document.addEventListener("scroll", () => {
+  document.addEventListener("scroll", function () {
     lastInteraction = Date.now();
     unlockInteraction();
   });
-  document.addEventListener("mousemove", () => {
+  document.addEventListener("mousemove", function () {
     lastInteraction = Date.now();
     unlockInteraction();
   });
 }
 
 function updateUnlockStatus() {
-  unlockStatusEl.textContent = userHasInteracted ? "✓ Autoplay unlocked" : "";
+  unlockStatusEl.textContent = userHasInteracted ? "Autoplay unlocked" : "";
 }
 
 function showAlarmForm() {
-  alarmFormContainer.classList.remove("hidden");
-  alarmFormContainer.classList.add("visible");
+  alarmFormContainer.style.display = "block";
 }
 
 function hideAlarmForm() {
-  alarmFormContainer.classList.remove("visible");
-  alarmFormContainer.classList.add("hidden");
+  alarmFormContainer.style.display = "none";
   editingAlarmId = null;
 }
 
 function editAlarm(id) {
-  const alarm = alarms.find((a) => a.id === id);
+  var alarm = null;
+  for (var i = 0; i < alarms.length; i++) {
+    if (alarms[i].id === id) {
+      alarm = alarms[i];
+      break;
+    }
+  }
   if (!alarm) return;
 
   editingAlarmId = alarm.id;
   alarmTimeEl.value = alarm.time;
 
-  // Clear all day checkboxes first
-  daySelectEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-    cb.checked = false;
-  });
+  var checkboxes = daySelectEl.querySelectorAll('input[type="checkbox"]');
+  for (var i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = false;
+  }
 
-  // Check the days for this alarm
-  alarm.days.forEach((day) => {
-    const checkbox = daySelectEl.querySelector(
-      `input[type="checkbox"][value="${day}"]`,
+  for (var j = 0; j < alarm.days.length; j++) {
+    var day = alarm.days[j];
+    var checkbox = daySelectEl.querySelector(
+      'input[type="checkbox"][value="' + day + '"]',
     );
     if (checkbox) checkbox.checked = true;
-  });
+  }
 
   soundSelectEl.value = alarm.url;
   showAlarmForm();
@@ -162,16 +176,20 @@ function tick() {
 }
 
 function updateClock() {
-  const now = new Date();
-  const timeString = now.toLocaleTimeString([], { hour12: false });
-  // Split into HH:MM and :SS
-  const parts = timeString.split(":");
-  // Format as HH:MM<span class="clock-small">:SS</span>
-  clockEl.innerHTML = `${parts[0]}:${parts[1]}<span class="clock-small">:${parts[2]}</span>`;
+  var now = new Date();
+  var timeString = now.toLocaleTimeString([], { hour12: false });
+  var parts = timeString.split(":");
+  clockEl.innerHTML =
+    parts[0] +
+    ":" +
+    parts[1] +
+    '<span class="clock-small">:' +
+    parts[2] +
+    "</span>";
 }
 
 function checkInactivity() {
-  const elapsed = (Date.now() - lastInteraction) / 1000 / 60;
+  var elapsed = (Date.now() - lastInteraction) / 1000 / 60;
   if (elapsed > 15) {
     document.body.classList.add("dimmed");
   } else {
@@ -198,23 +216,25 @@ function getSelectedSoundUrl() {
 }
 
 function populateSoundSelect() {
-  // Add radio stations from radiostations.js
-  Object.entries(RADIO_STATIONS).forEach(([url, name]) => {
-    const option = document.createElement("option");
-    option.value = url;
-    option.textContent = name;
-    soundSelectEl.appendChild(option);
-  });
+  for (var key in RADIO_STATIONS) {
+    if (RADIO_STATIONS.hasOwnProperty(key)) {
+      var option = document.createElement("option");
+      option.value = key;
+      option.textContent = RADIO_STATIONS[key];
+      soundSelectEl.appendChild(option);
+    }
+  }
 }
 
 // ===== AUDIO PLAYBACK =====
 function createAudio(url) {
-  const a = new Audio(url);
+  var a = new Audio(url);
   a.crossOrigin = "anonymous";
   return a;
 }
 
 function stopAllSound() {
+  stopBeepLoop();
   if (testAudio) {
     testAudio.pause();
     testAudio = null;
@@ -232,102 +252,75 @@ function stopAllSound() {
   unlockStatusEl.textContent = "";
 }
 
-function playAlarmBeep() {
-  if (!audioCtx || muted) return;
-  stopAllSound();
-
-  // Ensure AudioContext is running (for iOS)
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume().catch(console.error);
-    return; // Resume is async, will be called again next tick
+function stopBeepLoop() {
+  if (beepInterval) {
+    clearInterval(beepInterval);
+    beepInterval = null;
+    beepCount = 0;
+    stopAllSound();
   }
-
-  toneOscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  toneOscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-
-  toneOscillator.type = "sine";
-  toneOscillator.frequency.value = 880;
-  gainNode.gain.value = 0.3;
-
-  // Use explicit time for iOS compatibility
-  const now = audioCtx.currentTime;
-  toneOscillator.start(now);
-
-  // Pulse the beep
-  gainNode.gain.setValueAtTime(0.3, now);
-  gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
-
-  setTimeout(() => {
-    if (!muted && playingAlarmId) playAlarmBeep();
-  }, 600);
 }
 
 function playSingleBeep() {
   if (!audioCtx || muted) return;
 
-  // Ensure AudioContext is running (for iOS)
   if (audioCtx.state === "suspended") {
-    audioCtx.resume().catch(console.error);
+    audioCtx.resume();
     return;
   }
 
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
+  var oscillator = audioCtx.createOscillator();
+  var gainNode = audioCtx.createGain();
   oscillator.connect(gainNode);
   gainNode.connect(audioCtx.destination);
   oscillator.frequency.value = 880;
   oscillator.type = "sine";
   gainNode.gain.value = 0.3;
-  const now = audioCtx.currentTime;
+  var now = audioCtx.currentTime;
   oscillator.start(now);
   gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
 }
 
 function testSound() {
   stopAllSound();
-  let url;
+  var url;
 
-  // If alarm form is visible, use the selected sound from form
-  if (alarmFormContainer.classList.contains("visible")) {
+  if (alarmFormContainer.style.display === "block") {
     url = getSelectedSoundUrl();
   } else {
-    // Otherwise, get the next alarm's sound
-    const nextAlarm = getUpcomingAlarm();
+    var nextAlarm = getUpcomingAlarm();
     if (nextAlarm) url = nextAlarm.url;
   }
 
   if (!url) return;
 
-  // For streams on iOS, ensure we have user interaction
-  if (url.startsWith("http") && !userHasInteracted) {
-    unlockStatusEl.textContent = "⚠ Tap to test stream";
+  if (url.indexOf("http") === 0 && !userHasInteracted) {
+    unlockStatusEl.textContent = "Tap to test stream";
     return;
   }
 
   playAlarmSound(url);
 }
 
-// Get the upcoming alarm object (not just display info)
 function getUpcomingAlarm() {
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-  const currentDay = now.getDay();
+  var now = new Date();
+  var currentTime = now.getHours() * 60 + now.getMinutes();
+  var currentDay = now.getDay();
 
-  let nextAlarm = null;
-  let minDiff = Infinity;
+  var nextAlarm = null;
+  var minDiff = Infinity;
 
-  for (const alarm of alarms) {
-    const [hours, minutes] = alarm.time.split(":").map(Number);
-    const alarmTime = hours * 60 + minutes;
+  for (var i = 0; i < alarms.length; i++) {
+    var alarm = alarms[i];
+    if (!alarm.enabled) continue;
 
-    for (const day of alarm.days) {
-      // Calculate days until this alarm day (0-6)
-      let daysUntil = (day - currentDay + 7) % 7;
-      // Calculate total minutes until this occurrence
-      let totalMinutes = daysUntil * 1440 + (alarmTime - currentTime);
-      // If negative, add a week
+    var parts = alarm.time.split(":");
+    var alarmTime = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+
+    for (var j = 0; j < alarm.days.length; j++) {
+      var day = alarm.days[j];
+      var daysUntil = (day - currentDay + 7) % 7;
+      var totalMinutes = daysUntil * 1440 + (alarmTime - currentTime);
       if (totalMinutes < 0) totalMinutes += 7 * 1440;
 
       if (totalMinutes < minDiff) {
@@ -341,27 +334,48 @@ function getUpcomingAlarm() {
 
 // ===== ALARMS =====
 function addAlarm() {
-  const time = alarmTimeEl.value;
+  var time = alarmTimeEl.value;
   if (!time) return alert("Please set a time");
 
-  const days = Array.from(
-    daySelectEl.querySelectorAll('input[type="checkbox"]:checked'),
-  ).map((cb) => parseInt(cb.value));
+  var checkboxes = daySelectEl.querySelectorAll(
+    'input[type="checkbox"]:checked',
+  );
+  var days = [];
+  for (var i = 0; i < checkboxes.length; i++) {
+    days.push(parseInt(checkboxes[i].value));
+  }
   if (days.length === 0) return alert("Please select at least one day");
 
-  const url = getSelectedSoundUrl();
+  var url = getSelectedSoundUrl();
   if (!url) return alert("Please select a sound");
 
   if (editingAlarmId) {
-    // Update existing alarm
-    const index = alarms.findIndex((a) => a.id === editingAlarmId);
+    var index = -1;
+    for (var i = 0; i < alarms.length; i++) {
+      if (alarms[i].id === editingAlarmId) {
+        index = i;
+        break;
+      }
+    }
     if (index !== -1) {
-      alarms[index] = { id: editingAlarmId, time, days, url };
+      var enabled =
+        alarms[index].enabled !== undefined ? alarms[index].enabled : true;
+      alarms[index] = {
+        id: editingAlarmId,
+        time: time,
+        days: days,
+        url: url,
+        enabled: enabled,
+      };
     }
   } else {
-    // Add new alarm
-    const alarm = { id: Date.now(), time, days, url };
-    alarms.push(alarm);
+    alarms.push({
+      id: Date.now(),
+      time: time,
+      days: days,
+      url: url,
+      enabled: true,
+    });
   }
 
   saveAlarms();
@@ -369,9 +383,10 @@ function addAlarm() {
   updateNextAlarm();
 
   alarmTimeEl.value = "";
-  daySelectEl
-    .querySelectorAll('input[type="checkbox"]')
-    .forEach((cb) => (cb.checked = false));
+  checkboxes = daySelectEl.querySelectorAll('input[type="checkbox"]');
+  for (var i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = false;
+  }
   soundSelectEl.value = "";
   editingAlarmId = null;
 
@@ -379,7 +394,13 @@ function addAlarm() {
 }
 
 function deleteAlarm(id) {
-  alarms = alarms.filter((a) => a.id !== id);
+  var newAlarms = [];
+  for (var i = 0; i < alarms.length; i++) {
+    if (alarms[i].id !== id) {
+      newAlarms.push(alarms[i]);
+    }
+  }
+  alarms = newAlarms;
   saveAlarms();
   renderAlarms();
   updateNextAlarm();
@@ -390,32 +411,53 @@ function deleteAlarm(id) {
   }
 }
 
-// Test alarm when clicked
+function toggleAlarmEnabled(id) {
+  for (var i = 0; i < alarms.length; i++) {
+    if (alarms[i].id === id) {
+      alarms[i].enabled = !alarms[i].enabled;
+      saveAlarms();
+      renderAlarms();
+      return;
+    }
+  }
+}
+
 function testAlarm(id) {
-  const alarm = alarms.find((a) => a.id === id);
+  var alarm = null;
+  for (var i = 0; i < alarms.length; i++) {
+    if (alarms[i].id === id) {
+      alarm = alarms[i];
+      break;
+    }
+  }
   if (!alarm) return;
 
-  const url = alarm.url;
+  var url = alarm.url;
   if (url === "tone") {
     stopAllSound();
-    playAlarmBeep();
+    playingAlarmId = Date.now();
+    var beepLoop = setInterval(function () {
+      if (muted || !playingAlarmId) {
+        clearInterval(beepLoop);
+        return;
+      }
+      playSingleBeep();
+    }, 1000);
     playingAlarmId = "test";
   } else if (url === "beep") {
     stopAllSound();
     playSingleBeep();
-  } else if (url.startsWith("data:")) {
+  } else if (url.indexOf("data:") === 0) {
     stopAllSound();
     audio = createAudio(url);
     audio.loop = true;
-    audio.play().catch(console.error);
+    audio.play();
   } else if (userHasInteracted) {
     stopAllSound();
     audio = createAudio(url);
-    audio.play().catch((e) => {
-      unlockStatusEl.textContent = "⚠ Stream needs unlock";
-    });
+    audio.play();
   } else {
-    unlockStatusEl.textContent = "⚠ Click any button first to unlock streams";
+    unlockStatusEl.textContent = "Click any button first to unlock streams";
   }
 }
 
@@ -425,30 +467,58 @@ function renderAlarms() {
     return;
   }
 
-  // Day names in order: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var html = "";
 
-  alarmsListEl.innerHTML = alarms
-    .map((alarm) => {
-      const name = getStationName(alarm.url);
-      const autoPlay =
-        alarm.url === "tone" ||
-        alarm.url === "beep" ||
-        alarm.url.startsWith("data:");
-      return `
-      <div class="alarm-item" onclick="testAlarm(${alarm.id})">
-        <div>
-          <div class="alarm-time">${alarm.time} - ${name}${autoPlay ? " ⚡" : ""}</div>
-          <div class="alarm-days">${alarm.days.map((d) => dayNames[d]).join(", ")}</div>
-        </div>
-        <div class="alarm-actions">
-          <button class="edit-btn" onclick="event.stopPropagation(); editAlarm(${alarm.id})">Edit</button>
-          <button class="delete-btn" onclick="event.stopPropagation(); deleteAlarm(${alarm.id})">Delete</button>
-        </div>
-      </div>
-    `;
-    })
-    .join("");
+  for (var i = 0; i < alarms.length; i++) {
+    var alarm = alarms[i];
+    var name = getStationName(alarm.url);
+    var autoPlay =
+      alarm.url === "tone" ||
+      alarm.url === "beep" ||
+      alarm.url.indexOf("data:") === 0;
+    var enabledText = alarm.enabled ? "Disable" : "Enable";
+
+    html +=
+      '<div class="alarm-item" onclick="testAlarm(' +
+      alarm.id +
+      ')">' +
+      "<div>" +
+      '<div class="alarm-time">' +
+      alarm.time +
+      " - " +
+      name +
+      (autoPlay ? " " : "") +
+      (autoPlay ? '<span style="color:inherit">\u26A1</span>' : "") +
+      (!alarm.enabled ? " (disabled)" : "") +
+      "</div>" +
+      '<div class="alarm-days">' +
+      (function () {
+        var names = [];
+        for (var k = 0; k < alarm.days.length; k++) {
+          names.push(dayNames[alarm.days[k]]);
+        }
+        return names.join(", ");
+      })() +
+      "</div>" +
+      "</div>" +
+      '<div class="alarm-actions">' +
+      '<button class="toggle-btn" onclick="event.stopPropagation(); toggleAlarmEnabled(' +
+      alarm.id +
+      ')">' +
+      enabledText +
+      "</button>" +
+      '<button class="edit-btn" onclick="event.stopPropagation(); editAlarm(' +
+      alarm.id +
+      ')">Edit</button>' +
+      '<button class="delete-btn" onclick="event.stopPropagation(); deleteAlarm(' +
+      alarm.id +
+      ')">Delete</button>' +
+      "</div>" +
+      "</div>";
+  }
+
+  alarmsListEl.innerHTML = html;
 }
 
 // ===== ALARM CHECKING =====
@@ -458,144 +528,133 @@ function checkAlarms() {
     return;
   }
 
-  const now = new Date();
-  const currentTime = now.toTimeString().substring(0, 5);
-  const currentDay = now.getDay();
-  const currentMinute = now.getHours() * 60 + now.getMinutes();
+  var now = new Date();
+  var currentTime = now.toTimeString().substring(0, 5);
+  var currentDay = now.getDay();
+  var currentMinute = now.getHours() * 60 + now.getMinutes();
 
-  // Prevent re-firing the same alarm in the same minute
   if (currentMinute === lastAlarmedMinute) return;
 
-  for (const alarm of alarms) {
+  for (var i = 0; i < alarms.length; i++) {
+    var alarm = alarms[i];
+    if (!alarm.enabled) continue;
+
     if (
-      alarm.days.includes(currentDay) &&
+      alarm.days.indexOf(currentDay) !== -1 &&
       alarm.time === currentTime &&
       alarm.id !== playingAlarmId
     ) {
       lastAlarmedMinute = currentMinute;
-      // Tone/beep/data can autoplay, streams need user interaction on iOS
+
       if (
         alarm.url === "tone" ||
         alarm.url === "beep" ||
-        alarm.url.startsWith("data:")
+        alarm.url.indexOf("data:") === 0
       ) {
+        stopBeepLoop();
         stopAllSound();
         playingAlarmId = alarm.id;
         playAlarmSound(alarm.url);
-        return; // Only play one alarm per minute
-      } else if (userHasInteracted) {
-        // Try to play stream
-        stopAllSound();
-        playingAlarmId = alarm.id;
-        playAlarmSound(alarm.url);
-        return; // Only play one alarm per minute
-      } else {
-        // Stream alarm firing but no user interaction yet - store for when user taps
-        pendingAlarmUrl = alarm.url;
-        unlockStatusEl.textContent = "⚠ Alarm! Tap to play stream";
-        playingAlarmId = alarm.id;
-        lastAlarmedMinute = currentMinute;
-        return; // Only play one alarm per minute
+        return;
+      } else if (alarm.url.indexOf("http") === 0) {
+        if (isIOS) {
+          stopBeepLoop();
+          stopAllSound();
+          pendingAlarmUrl = alarm.url;
+          unlockStatusEl.textContent = "iOS Alarm! Tap to play stream";
+          playingAlarmId = alarm.id;
+          beepCount = 0;
+          beepInterval = setInterval(function () {
+            beepCount++;
+            if (beepCount >= 60) {
+              stopBeepLoop();
+              unlockStatusEl.textContent = "Alarm cancelled";
+              playingAlarmId = null;
+            } else {
+              playSingleBeep();
+            }
+          }, 1000);
+          return;
+        } else if (userHasInteracted) {
+          stopBeepLoop();
+          stopAllSound();
+          playingAlarmId = alarm.id;
+          playAlarmSound(alarm.url);
+          return;
+        } else {
+          stopBeepLoop();
+          stopAllSound();
+          pendingAlarmUrl = alarm.url;
+          unlockStatusEl.textContent = "Alarm! Tap to play stream";
+          playingAlarmId = alarm.id;
+          return;
+        }
       }
     }
   }
 }
 
 function playAlarmSound(url) {
-  if (muted || !url) return false;
+  if (muted || !url) return;
 
-  // Try to play the sound
   if (url === "tone") {
-    playAlarmBeep();
-    return true;
+    playingAlarmId = Date.now();
+    var loop = setInterval(function () {
+      if (muted || !playingAlarmId || url !== "tone") {
+        clearInterval(loop);
+        return;
+      }
+      playSingleBeep();
+    }, 1000);
+    return;
   }
+
   if (url === "beep") {
     stopAllSound();
-    setTimeout(() => playAlarmBeep(), 0);
-    return true;
+    setTimeout(playSingleBeep, 0);
+    return;
   }
 
-  // For data: URLs and streams - try to play
-  const playPromise = new Promise((resolve, reject) => {
-    audio = createAudio(url);
-    audio.loop = true;
+  audio = createAudio(url);
+  audio.loop = true;
 
-    // Try to play immediately
-    const promise = audio.play();
-    if (promise !== undefined) {
-      promise
-        .then(() => resolve(true))
-        .catch((e) => {
-          console.warn("First play attempt failed:", e);
-          // On iOS, need to retry after user gesture
-          document.addEventListener(
-            "click",
-            function playOnInteraction() {
-              audio
-                .play()
-                .then(() => resolve(true))
-                .catch(reject);
-              document.removeEventListener("click", playOnInteraction);
-            },
-            { once: true },
-          );
-          // Try again in 100ms in case it was just a timing issue
-          setTimeout(() => {
-            audio
-              .play()
-              .then(() => resolve(true))
-              .catch(reject);
-          }, 100);
-        });
-    } else {
-      // No promise returned (older browsers), assume success
-      resolve(true);
-    }
-  });
-
-  playPromise
-    .then(() => {
-      unlockStatusEl.textContent = "✓ Playing";
-      return true;
-    })
-    .catch((e) => {
-      console.error("Play failed:", e);
-      unlockStatusEl.textContent = "⚠ Tap to play";
-      // For iOS with streams, show a more noticeable alert
-      if (url.startsWith("http")) {
-        setTimeout(() => {
-          if (audio && audio.paused) {
-            unlockStatusEl.textContent = "⚠ iOS: Tap anywhere to start stream";
-          }
-        }, 500);
-      }
-      return false;
+  var promise = audio.play();
+  if (promise && typeof promise.catch === "function") {
+    promise.catch(function (e) {
+      console.warn("Play failed:", e);
+      document.addEventListener(
+        "click",
+        function playOnClick() {
+          audio.play().catch(function () {});
+          document.removeEventListener("click", playOnClick);
+        },
+        { once: true },
+      );
     });
-
-  return playPromise;
+  }
 }
 
 function getNextAlarm() {
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-  const currentDay = now.getDay();
+  var now = new Date();
+  var currentTime = now.getHours() * 60 + now.getMinutes();
+  var currentDay = now.getDay();
 
-  // Day names in order: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  let nextAlarm = null;
-  let minDiff = Infinity;
+  var nextAlarm = null;
+  var minDiff = Infinity;
 
-  for (const alarm of alarms) {
-    const [hours, minutes] = alarm.time.split(":").map(Number);
-    const alarmTime = hours * 60 + minutes;
+  for (var i = 0; i < alarms.length; i++) {
+    var alarm = alarms[i];
+    if (!alarm.enabled) continue;
 
-    for (const day of alarm.days) {
-      // Calculate days until this alarm day (0-6)
-      let daysUntil = (day - currentDay + 7) % 7;
-      // Calculate total minutes until this occurrence
-      let totalMinutes = daysUntil * 1440 + (alarmTime - currentTime);
-      // If negative, add a week
+    var parts = alarm.time.split(":");
+    var alarmTime = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+
+    for (var j = 0; j < alarm.days.length; j++) {
+      var day = alarm.days[j];
+      var daysUntil = (day - currentDay + 7) % 7;
+      var totalMinutes = daysUntil * 1440 + (alarmTime - currentTime);
       if (totalMinutes < 0) totalMinutes += 7 * 1440;
 
       if (totalMinutes < minDiff) {
@@ -612,26 +671,40 @@ function getNextAlarm() {
 }
 
 function updateNextAlarm() {
-  const next = getNextAlarm();
+  var next = getNextAlarm();
   if (next) {
-    const hours = Math.floor(next.diff / 60);
-    const minutes = Math.floor(next.diff % 60);
-    nextAlarmEl.textContent = `Next alarm: ${next.time} on ${next.days} (in ${hours}h ${minutes}m)`;
+    var hours = Math.floor(next.diff / 60);
+    var minutes = Math.floor(next.diff % 60);
+    nextAlarmEl.textContent =
+      "Next alarm: " +
+      next.time +
+      " on " +
+      next.days +
+      " (in " +
+      hours +
+      "h " +
+      minutes +
+      "m)";
   } else {
     nextAlarmEl.textContent = "No alarms set";
   }
 }
 
-// ===== COOKIE SAVE/LOAD (FIXED) =====
+// ===== COOKIE SAVE/LOAD =====
 function saveAlarms() {
   setCookie("alarms", JSON.stringify(alarms), 365);
 }
 
 function loadAlarms() {
-  const cookie = getCookie("alarms");
+  var cookie = getCookie("alarms");
   if (cookie) {
     try {
       alarms = JSON.parse(cookie);
+      for (var i = 0; i < alarms.length; i++) {
+        if (alarms[i].enabled === undefined) {
+          alarms[i].enabled = true;
+        }
+      }
     } catch (e) {
       alarms = [];
       console.error("Failed to parse alarms cookie:", e);
@@ -644,7 +717,7 @@ function saveMuteState() {
 }
 
 function loadMuteState() {
-  const cookie = getCookie("muted");
+  var cookie = getCookie("muted");
   muted = cookie === "true";
   updateMuteDisplay();
 }

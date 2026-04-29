@@ -1,5 +1,5 @@
 // Radio station definitions
-const RADIO_STATIONS = {
+var RADIO_STATIONS = {
   "http://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=96000.norewind.m3u8":
     "BBC Radio 1",
   "http://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio=96000.norewind.m3u8":
@@ -13,7 +13,7 @@ const RADIO_STATIONS = {
 };
 
 // Station display names
-const STATION_NAMES = {
+var STATION_NAMES = {
   tone: "Tone",
   beep: "Beep",
   "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA":
@@ -21,13 +21,21 @@ const STATION_NAMES = {
 };
 
 // Merge RADIO_STATIONS into STATION_NAMES
-for (const key in RADIO_STATIONS) {
-  STATION_NAMES[key] = RADIO_STATIONS[key];
+for (var key in RADIO_STATIONS) {
+  if (RADIO_STATIONS.hasOwnProperty(key)) {
+    STATION_NAMES[key] = RADIO_STATIONS[key];
+  }
 }
 
 // Get all radio station URLs
 function getRadioStationUrls() {
-  return Object.keys(RADIO_STATIONS);
+  var urls = [];
+  for (var k in RADIO_STATIONS) {
+    if (RADIO_STATIONS.hasOwnProperty(k)) {
+      urls.push(k);
+    }
+  }
+  return urls;
 }
 
 // Get station name for a URL
