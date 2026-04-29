@@ -49,7 +49,7 @@ h2 {
     margin: 20px 0;
 }
 .clock-small {
-    font-size: 3rem;
+    font-size: 33%;
 }
 .next-alarm {
     text-align: center;
@@ -213,6 +213,12 @@ select option[disabled] {
     flex: 1;
 }
 
+#version {
+    font-size: 0.5rem;
+    color: #c00;
+    margin-top: 2rem;
+}
+
 @media (max-width: 600px) {
     .controls {
         flex-direction: column;
@@ -226,6 +232,9 @@ select option[disabled] {
         justify-content: center;
     }
     .clock {
-        font-size: 2.2rem;
+        font-size: 5rem;
+    }
+    button {
+        margin-right: 0.3rem;
     }
 }
