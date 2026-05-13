@@ -19,10 +19,15 @@ body.dimmed {
 }
 body.dimmed *:not(.clock):not(.clock *):not(body.dimmed) {
     color: #300 !important;
+    background-color: #000;
 }
 body.dimmed button,
 body.dimmed button * {
     color: #000 !important;
+}
+
+body.dimmed .clock {
+    color: #800;
 }
 
 .container {
@@ -50,7 +55,9 @@ body.dimmed h2 {
 .clock {
     text-align: center;
     font-size: 10rem;
-    margin: 20px 0;
+    margin: 20px auto;
+    width: 100%;
+    max-width: 800px;
 }
 .clock-small {
     font-size: 33%;
@@ -93,7 +100,8 @@ button#addalarm {
 }
 
 button#playStopBtn {
-    padding: 1.5rem 7.5rem;
+    padding: 1.5rem 1.5rem;
+    flex: 1;
 }
 
 .status {
@@ -138,9 +146,11 @@ button#playStopBtn {
     align-items: center;
     padding: 10px;
     background: #600;
-    margin: 5px 0;
+    margin: 5px auto;
     border-radius: 4px;
     cursor: pointer;
+    width: 100%;
+    max-width: 800px;
 }
 
 body.dimmed .alarm-item {
@@ -151,6 +161,11 @@ body.dimmed .alarm-item {
 }
 .alarm-time {
     font-weight: bold;
+}
+
+body.dimmed .alarm-time,
+body.dimmed .alarm-days {
+    color: #000;
 }
 .alarm-days {
     font-size: 0.8rem;
