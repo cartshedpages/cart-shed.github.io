@@ -1,0 +1,250 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    background: #300;
+    color: #d00;
+    min-height: 100vh;
+    transition: background 0.5s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+body.dimmed {
+    background: #000;
+}
+body.dimmed *:not(.clock):not(.clock *):not(body.dimmed) {
+    color: #300 !important;
+}
+body.dimmed button,
+body.dimmed button * {
+    color: #000 !important;
+}
+
+.container {
+    max-width: 800px;
+    width: 100%;
+    padding: 20px;
+}
+h1 {
+    text-align: center;
+    margin: 20px 0;
+    color: #800;
+    font-size: 1rem;
+    font-weight: 300;
+}
+h2 {
+    margin: 20px 0 10px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+body.dimmed h2 {
+    color: #600;
+}
+
+.clock {
+    text-align: center;
+    font-size: 10rem;
+    margin: 20px 0;
+}
+.clock-small {
+    font-size: 33%;
+}
+.next-alarm {
+    text-align: center;
+    font-size: 1.2rem;
+    margin: 10px 0;
+    /*color: #90ee90;*/
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    align-items: center;
+}
+button,
+input,
+select {
+    padding: 1.5rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background: #200;
+    color: #e00;
+}
+button {
+    cursor: pointer;
+    background: #600;
+    margin-right: 1rem;
+}
+button:hover {
+    background: #900;
+}
+
+button#addalarm {
+    margin-top: 1em;
+}
+
+button#playStopBtn {
+    padding: 1.5rem 7.5rem;
+}
+
+.status {
+    font-size: 0.8rem;
+    color: #ff9900;
+    margin-left: 10px;
+}
+.info {
+    font-size: 0.7rem;
+    color: #c00;
+    margin: 15px 0;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.alarm-form {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.day-select {
+    display: flex;
+    flex-wrap: wrap;
+}
+.day-select label {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-right: 1rem;
+    cursor: pointer;
+}
+
+.alarms-list {
+    margin: 20px 0;
+}
+
+.alarm-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #600;
+    margin: 5px 0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+body.dimmed .alarm-item {
+    background: #300;
+}
+.alarm-item:hover {
+    background: #000;
+}
+.alarm-time {
+    font-weight: bold;
+}
+.alarm-days {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.alarm-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.toggle-btn,
+.edit-btn,
+.delete-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #c00;
+    background: #300;
+}
+
+.toggle-btn:hover,
+.edit-btn:hover,
+.delete-btn:hover {
+    background: #a00;
+    color: #600;
+}
+
+.sound-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 1rem;
+}
+select {
+    min-width: 200px;
+}
+select option[disabled] {
+    color: #666;
+    font-weight: bold;
+    background: #0f3460;
+}
+
+.mute-indicator {
+    color: #ff4444;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.alarm-form-container {
+    display: none;
+}
+
+.alarm-form-container.visible {
+    display: block;
+}
+
+.alarm-form-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.alarm-form-buttons button {
+    flex: 1;
+}
+
+#version {
+    font-size: 0.75rem;
+    font-weight: 300;
+    color: #c00;
+    margin-top: 2rem;
+}
+
+@media (max-width: 600px) {
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .alarm-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .day-select {
+        justify-content: center;
+    }
+    .clock {
+        font-size: 5rem;
+    }
+    button {
+        margin-right: 0.3rem;
+    }
+}
