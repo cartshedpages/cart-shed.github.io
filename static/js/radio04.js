@@ -72,6 +72,7 @@ function init() {
   setInterval(tick, 1000);
   setInterval(checkAlarms, 1000);
   setInterval(checkInactivity, 1000);
+  setInterval(updateNextAlarm, 60000);
 
   addAlarmBtn.addEventListener("click", addAlarm);
   cancelAlarmBtn.addEventListener("click", hideAlarmForm);
@@ -159,7 +160,6 @@ function editAlarm(id) {
 // ===== CLOCK & INACTIVITY =====
 function tick() {
   updateClock();
-  updateNextAlarm();
 }
 
 function updateClock() {
