@@ -12,6 +12,7 @@ var lastAlarmedMinute = -1;
 var beepInterval = null;
 var beepCount = 0;
 var beepAudio = null;
+var iOSBeepAudio = null;
 var toneLoopInterval = null;
 var lastInteraction = Date.now();
 var userHasInteracted = false;
@@ -232,6 +233,14 @@ function createAudio(url) {
   return a;
 }
 
+function getBeepInterval() {
+  // If BEEP_FREQUENCY is defined in radiostations.js, use it
+  if (typeof BEEP_FREQUENCY !== "undefined") {
+    return Math.max(100, Math.round(1000 / BEEP_FREQUENCY));
+  }
+  return 2000; // Default: 2 seconds
+}
+
 function stopAllSound() {
   stopBeepLoop();
   if (toneLoopInterval) {
@@ -253,6 +262,10 @@ function stopAllSound() {
   if (beepAudio) {
     beepAudio.pause();
     beepAudio = null;
+  }
+  if (iOSBeepAudio) {
+    iOSBeepAudio.pause();
+    iOSBeepAudio = null;
   }
   playingAlarmId = null;
   pendingAlarmUrl = null;
@@ -294,46 +307,10 @@ function stopBeepLoop() {
     beepInterval = null;
     beepCount = 0;
   }
-}
-
-function getBeepInterval() {
-  // If BEEP_FREQUENCY is defined in radiostations.js, use it
-  if (typeof BEEP_FREQUENCY !== "undefined") {
-    return Math.max(100, Math.round(1000 / BEEP_FREQUENCY));
+  if (iOSBeepAudio) {
+    iOSBeepAudio.pause();
+    iOSBeepAudio.onended = null;
   }
-  return 2000; // Default: 2 seconds
-}
-
-function startIOSBeepLoop() {
-  var interval = getBeepInterval();
-  soundPlaying = true;
-  updatePlayStopButton();
-  unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
-
-  // Ensure AudioContext is running
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume().catch(function () {});
-  }
-
-  var playBeep = function () {
-    beepCount++;
-    if (beepCount >= 60) {
-      unlockStatusEl.textContent = "Alarm cancelled";
-      playingAlarmId = null;
-      soundPlaying = false;
-      updatePlayStopButton();
-      return;
-    }
-
-    // Use Web Audio API for iOS beeps (works after AudioContext is created from user gesture)
-    playSingleBeep();
-
-    // Schedule next beep
-    beepInterval = setTimeout(playBeep, interval);
-  };
-
-  // Start the beep loop - first beep from tap gesture
-  playBeep();
 }
 
 function playSingleBeep() {
@@ -585,6 +562,25 @@ function checkAlarms() {
 
 // ===== iOS SPECIFIC FUNCTIONS =====
 
+// Global iOS beep audio element - created once and reused
+var iOSBeepAudio = null;
+
+function createIOSBeepAudio() {
+  if (!iOSBeepAudio) {
+    iOSBeepAudio = new Audio(
+      "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
+    );
+    iOSBeepAudio.loop = false;
+  }
+  return iOSBeepAudio;
+}
+
+function playIOSBeep() {
+  var beep = createIOSBeepAudio();
+  beep.currentTime = 0;
+  beep.play().catch(function () {});
+}
+
 function triggerAlarmIOS(alarm) {
   stopBeepLoop();
   stopAllSound();
@@ -603,8 +599,12 @@ function handleIOSPendingAlarm() {
     updatePlayStopButton();
     unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
 
-    // Start all 60 beeps from tap gesture using Web Audio API
-    beepCount = 0;
+    // Create and play first beep directly from tap gesture
+    createIOSBeepAudio();
+    playIOSBeep();
+    beepCount = 1;
+
+    // Start loop for remaining 59 beeps
     startIOSBeepLoop();
   } else {
     // Beeps are running, tap stops them and plays stream
@@ -617,6 +617,31 @@ function handleIOSPendingAlarm() {
   }
 }
 
+function startIOSBeepLoop() {
+  var interval = getBeepInterval();
+  var beep = createIOSBeepAudio();
+
+  // Use onended event to chain beeps - works on iOS
+  beep.onended = function () {
+    beepCount++;
+    if (beepCount >= 60) {
+      unlockStatusEl.textContent = "Alarm cancelled";
+      playingAlarmId = null;
+      soundPlaying = false;
+      updatePlayStopButton();
+      return;
+    }
+    // Play next beep after interval
+    setTimeout(function () {
+      beep.currentTime = 0;
+      beep.play().catch(function () {});
+    }, interval);
+  };
+
+  // Start the chain - first beep already played in handleIOSPendingAlarm
+  // so we just need to set up the onended handler
+}
+
 function playSoundIOS(url) {
   if (muted || !url) return;
 
@@ -624,64 +649,47 @@ function playSoundIOS(url) {
   soundPlaying = true;
   updatePlayStopButton();
 
-  var beepInterval = getBeepInterval();
+  var interval = getBeepInterval();
 
-  if (url === "tone") {
-    toneLoopInterval = setInterval(function () {
+  if (url === "tone" || url === "beep" || url.indexOf("data:") === 0) {
+    // For tone, beep, and simple beep on iOS, use Audio element with onended chaining
+    createIOSBeepAudio();
+    var beep = iOSBeepAudio;
+
+    // Set up onended handler for chaining
+    beep.onended = function () {
       if (muted || !soundPlaying) {
-        stopAllSound();
+        beep.pause();
+        beep.onended = null;
         return;
       }
-      playSingleBeep();
-    }, beepInterval);
+      setTimeout(function () {
+        beep.currentTime = 0;
+        beep.play().catch(function () {});
+      }, interval);
+    };
+
+    // Play first beep
+    beep.currentTime = 0;
+    beep.play().catch(function () {});
     return;
   }
 
-  if (url === "beep") {
-    // Loop beep
-    var beepLoop = setInterval(function () {
-      if (muted || !soundPlaying) {
-        clearInterval(beepLoop);
-        return;
-      }
-      playSingleBeep();
-    }, beepInterval);
-    toneLoopInterval = beepLoop;
-    return;
-  }
-
-  // For data: URLs (simple beep) and streams
+  // For streams
   audio = createAudio(url);
-
-  if (url.indexOf("data:") === 0) {
-    // Simple beep
-    audio.loop = false;
-    var simpleBeepLoop = setInterval(function () {
-      if (muted || !soundPlaying) {
-        clearInterval(simpleBeepLoop);
-        audio.pause();
-        return;
-      }
-      audio.currentTime = 0;
-      audio.play().catch(function () {});
-    }, beepInterval);
-    toneLoopInterval = simpleBeepLoop;
-  } else {
-    // Stream - try to play (may need user gesture on iOS)
-    audio.loop = true;
-    var promise = audio.play();
-    if (promise && typeof promise.catch === "function") {
-      promise.catch(function (e) {
-        console.warn("Play failed:", e);
-        soundPlaying = false;
-        updatePlayStopButton();
-      });
-    }
-    audio.addEventListener("ended", function () {
+  audio.loop = true;
+  var promise = audio.play();
+  if (promise && typeof promise.catch === "function") {
+    promise.catch(function (e) {
+      console.warn("Play failed:", e);
       soundPlaying = false;
       updatePlayStopButton();
     });
   }
+  audio.addEventListener("ended", function () {
+    soundPlaying = false;
+    updatePlayStopButton();
+  });
 }
 
 // ===== NON-iOS SPECIFIC FUNCTIONS =====
@@ -725,6 +733,8 @@ function playSoundNonIOS(url) {
   soundPlaying = true;
   updatePlayStopButton();
 
+  var interval = getBeepInterval();
+
   if (url === "tone") {
     toneLoopInterval = setInterval(function () {
       if (muted || !soundPlaying) {
@@ -732,7 +742,7 @@ function playSoundNonIOS(url) {
         return;
       }
       playSingleBeep();
-    }, getBeepInterval());
+    }, interval);
     return;
   }
 
@@ -744,8 +754,7 @@ function playSoundNonIOS(url) {
         return;
       }
       playSingleBeep();
-    }, getBeepInterval());
-    // Store reference to clean up
+    }, interval);
     toneLoopInterval = beepLoop;
     return;
   }
@@ -764,7 +773,7 @@ function playSoundNonIOS(url) {
       }
       audio.currentTime = 0;
       audio.play().catch(function () {});
-    }, getBeepInterval());
+    }, interval);
     toneLoopInterval = simpleBeepLoop;
   } else {
     // Stream - loop continuously
