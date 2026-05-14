@@ -296,8 +296,7 @@ function startIOSBeepLoop() {
       soundPlaying = false;
       updatePlayStopButton();
     } else {
-      beepAudio.currentTime = 0;
-      beepAudio.play().catch(function () {});
+      playSingleBeep();
     }
   }, 1000);
 }
@@ -555,27 +554,23 @@ function triggerAlarmIOS(alarm) {
   stopBeepLoop();
   stopAllSound();
   pendingAlarmUrl = alarm.url;
-  unlockStatusEl.textContent = "iOS Alarm! Tap to play";
+  unlockStatusEl.textContent = "iOS Alarm! Tap to stop beeps and play stream";
   playingAlarmId = alarm.id;
   beepCount = 0;
-  beepAudio = new Audio(
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
-  );
-  beepAudio.loop = false;
+  soundPlaying = true;
+  updatePlayStopButton();
+  // Start 60 seconds of beeps using Web Audio API
+  startIOSBeepLoop();
 }
 
 function handleIOSPendingAlarm() {
-  if (beepAudio && !beepInterval) {
-    soundPlaying = true;
-    updatePlayStopButton();
-    startIOSBeepLoop();
-    unlockStatusEl.textContent = "Beeping... Tap to play stream";
-    pendingAlarmUrl = null;
-  } else {
+  // Tap stops beeps and plays the stream
+  stopBeepLoop();
+  if (pendingAlarmUrl) {
     playSoundIOS(pendingAlarmUrl);
     pendingAlarmUrl = null;
-    unlockStatusEl.textContent = "";
   }
+  unlockStatusEl.textContent = "";
 }
 
 function playSoundIOS(url) {
