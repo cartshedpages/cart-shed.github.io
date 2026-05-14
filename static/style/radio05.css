@@ -103,6 +103,9 @@ button#playStopBtn {
     padding: 1.5rem 1.5rem;
     flex: 1;
 }
+.ios-only {
+    display: none;
+}
 
 .status {
     font-size: 0.8rem;

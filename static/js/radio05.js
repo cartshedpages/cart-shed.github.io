@@ -62,6 +62,7 @@ var muteBtn = document.getElementById("muteBtn");
 var muteIndicatorEl = document.getElementById("muteIndicator");
 var playStopBtn = document.getElementById("playStopBtn");
 var soundSelectEl = document.getElementById("soundSelect");
+var checkSoundBtn = document.getElementById("checkSoundBtn");
 
 // ===== INITIALIZE =====
 function init() {
@@ -82,6 +83,14 @@ function init() {
   showAddAlarmBtn.addEventListener("click", showAlarmForm);
   muteBtn.addEventListener("click", toggleMute);
   playStopBtn.addEventListener("click", togglePlayStop);
+
+  // Show Check sound button only on iOS
+  if (checkSoundBtn) {
+    if (isIOS) {
+      checkSoundBtn.classList.remove("ios-only");
+    }
+    checkSoundBtn.addEventListener("click", checkSound);
+  }
 
   alarmFormContainer.classList.remove("visible");
 
@@ -128,6 +137,36 @@ function init() {
 
 function updateUnlockStatus() {
   unlockStatusEl.textContent = userHasInteracted ? "Autoplay unlocked" : "";
+}
+
+function checkSound() {
+  if (!isIOS) return;
+
+  // Create and play 2 beeps to pre-load the audio element with user gesture
+  createIOSBeepAudio();
+  var beep = iOSBeepAudio;
+  var beepCount = 0;
+
+  beep.onended = function () {
+    beepCount++;
+    if (beepCount >= 2) {
+      beep.onended = null;
+      beep.pause();
+      beep.currentTime = 0;
+      unlockStatusEl.textContent = "Sound checked - beeps pre-loaded";
+      setTimeout(function () {
+        unlockStatusEl.textContent = "";
+      }, 2000);
+      return;
+    }
+    setTimeout(function () {
+      beep.currentTime = 0;
+      beep.play().catch(function () {});
+    }, getBeepInterval());
+  };
+
+  beep.currentTime = 0;
+  beep.play().catch(function () {});
 }
 
 function showAlarmForm() {
@@ -588,40 +627,26 @@ function triggerAlarmIOS(alarm) {
   playingAlarmId = alarm.id;
   beepCount = 0;
 
-  // On iOS, always require user gesture to start beeps
-  unlockStatusEl.textContent = "iOS Alarm! Tap to start beeps and play stream";
-}
-
-function handleIOSPendingAlarm() {
-  // If beeps aren't running, start them
-  if (!beepInterval) {
+  // On iOS, if iOSBeepAudio was pre-loaded with user gesture, start beeps automatically
+  // Otherwise, show message to tap to play stream directly
+  if (iOSBeepAudio) {
+    // iOSBeepAudio exists and has user gesture context - start beeps automatically
     soundPlaying = true;
     updatePlayStopButton();
     unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
-
-    // Create and play first beep directly from tap gesture
-    createIOSBeepAudio();
-    playIOSBeep();
-    beepCount = 1;
-
-    // Start loop for remaining 59 beeps
-    startIOSBeepLoop();
+    startIOSBeepChain();
   } else {
-    // Beeps are running, tap stops them and plays stream
-    stopBeepLoop();
-    if (pendingAlarmUrl) {
-      playSoundIOS(pendingAlarmUrl);
-      pendingAlarmUrl = null;
-    }
-    unlockStatusEl.textContent = "";
+    // iOSBeepAudio not pre-loaded - need user gesture to play stream directly
+    unlockStatusEl.textContent = "iOS Alarm! Tap to play stream";
   }
 }
 
-function startIOSBeepLoop() {
-  var interval = getBeepInterval();
-  var beep = createIOSBeepAudio();
+function startIOSBeepChain() {
+  createIOSBeepAudio();
+  var beep = iOSBeepAudio;
+  beepCount = 1;
 
-  // Use onended event to chain beeps - works on iOS
+  // Set up onended handler for chaining 60 beeps
   beep.onended = function () {
     beepCount++;
     if (beepCount >= 60) {
@@ -631,15 +656,44 @@ function startIOSBeepLoop() {
       updatePlayStopButton();
       return;
     }
-    // Play next beep after interval
     setTimeout(function () {
       beep.currentTime = 0;
       beep.play().catch(function () {});
-    }, interval);
+    }, getBeepInterval());
   };
 
-  // Start the chain - first beep already played in handleIOSPendingAlarm
-  // so we just need to set up the onended handler
+  // Play first beep
+  beep.currentTime = 0;
+  beep.play().catch(function () {});
+}
+
+function handleIOSPendingAlarm() {
+  // If beeps are running (iOSBeepAudio was pre-loaded), stop them and play stream
+  if (beepCount > 0 && beepCount < 60) {
+    stopBeepLoop();
+    if (pendingAlarmUrl) {
+      playSoundIOS(pendingAlarmUrl);
+      pendingAlarmUrl = null;
+    }
+    unlockStatusEl.textContent = "";
+    return;
+  }
+
+  // If iOSBeepAudio was pre-loaded but beeps haven't started yet, start them
+  if (iOSBeepAudio && beepCount === 0) {
+    soundPlaying = true;
+    updatePlayStopButton();
+    unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
+    startIOSBeepChain();
+    return;
+  }
+
+  // If iOSBeepAudio was NOT pre-loaded, play stream directly
+  if (pendingAlarmUrl) {
+    playSoundIOS(pendingAlarmUrl);
+    pendingAlarmUrl = null;
+  }
+  unlockStatusEl.textContent = "";
 }
 
 function playSoundIOS(url) {
