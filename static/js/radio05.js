@@ -582,36 +582,60 @@ function playSoundIOS(url) {
 
   if (url === "tone") {
     toneLoopInterval = setInterval(function () {
-      if (muted || !playingAlarmId) {
+      if (muted || !soundPlaying) {
         stopAllSound();
         return;
       }
       playSingleBeep();
-    }, 1000);
+    }, 2000); // 2000 being 2 seconds in ticks
     return;
   }
 
   if (url === "beep") {
-    setTimeout(playSingleBeep, 0);
+    // Loop beep every 2 seconds
+    var beepLoop = setInterval(function () {
+      if (muted || !soundPlaying) {
+        clearInterval(beepLoop);
+        return;
+      }
+      playSingleBeep();
+    }, 2000); // 2000 being 2 seconds in ticks
+    toneLoopInterval = beepLoop;
     return;
   }
 
+  // For data: URLs (simple beep) and streams
   audio = createAudio(url);
-  audio.loop = true;
 
-  var promise = audio.play();
-  if (promise && typeof promise.catch === "function") {
-    promise.catch(function (e) {
-      console.warn("Play failed:", e);
+  if (url.indexOf("data:") === 0) {
+    // Simple beep - play once every 2 seconds
+    audio.loop = false;
+    var simpleBeepLoop = setInterval(function () {
+      if (muted || !soundPlaying) {
+        clearInterval(simpleBeepLoop);
+        audio.pause();
+        return;
+      }
+      audio.currentTime = 0;
+      audio.play().catch(function () {});
+    }, 2000); // 2000 being 2 seconds in ticks
+    toneLoopInterval = simpleBeepLoop;
+  } else {
+    // Stream - try to play (may need user gesture on iOS)
+    audio.loop = true;
+    var promise = audio.play();
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(function (e) {
+        console.warn("Play failed:", e);
+        soundPlaying = false;
+        updatePlayStopButton();
+      });
+    }
+    audio.addEventListener("ended", function () {
       soundPlaying = false;
       updatePlayStopButton();
     });
   }
-
-  audio.addEventListener("ended", function () {
-    soundPlaying = false;
-    updatePlayStopButton();
-  });
 }
 
 // ===== NON-iOS SPECIFIC FUNCTIONS =====
@@ -657,36 +681,61 @@ function playSoundNonIOS(url) {
 
   if (url === "tone") {
     toneLoopInterval = setInterval(function () {
-      if (muted || !playingAlarmId) {
+      if (muted || !soundPlaying) {
         stopAllSound();
         return;
       }
       playSingleBeep();
-    }, 1000);
+    }, 2000); // 2000 being 2 seconds in ticks
     return;
   }
 
   if (url === "beep") {
-    setTimeout(playSingleBeep, 0);
+    // Loop beep every 2 seconds
+    var beepLoop = setInterval(function () {
+      if (muted || !soundPlaying) {
+        clearInterval(beepLoop);
+        return;
+      }
+      playSingleBeep();
+    }, 2000); // 2000 being 2 seconds in ticks
+    // Store reference to clean up
+    toneLoopInterval = beepLoop;
     return;
   }
 
+  // For data: URLs (simple beep) and streams
   audio = createAudio(url);
-  audio.loop = true;
 
-  var promise = audio.play();
-  if (promise && typeof promise.catch === "function") {
-    promise.catch(function (e) {
-      console.warn("Play failed:", e);
+  if (url.indexOf("data:") === 0) {
+    // Simple beep - play once every 2 seconds
+    audio.loop = false;
+    var simpleBeepLoop = setInterval(function () {
+      if (muted || !soundPlaying) {
+        clearInterval(simpleBeepLoop);
+        audio.pause();
+        return;
+      }
+      audio.currentTime = 0;
+      audio.play().catch(function () {});
+    }, 2000); // 2000 being 2 seconds in ticks
+    toneLoopInterval = simpleBeepLoop;
+  } else {
+    // Stream - loop continuously
+    audio.loop = true;
+    var promise = audio.play();
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(function (e) {
+        console.warn("Play failed:", e);
+        soundPlaying = false;
+        updatePlayStopButton();
+      });
+    }
+    audio.addEventListener("ended", function () {
       soundPlaying = false;
       updatePlayStopButton();
     });
   }
-
-  audio.addEventListener("ended", function () {
-    soundPlaying = false;
-    updatePlayStopButton();
-  });
 }
 
 // ===== ALARM DISPLAY =====
