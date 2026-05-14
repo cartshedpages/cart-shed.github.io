@@ -1,3 +1,6 @@
+// Beep frequency - beeps per second (0.5 = one beep every 2 seconds, 1.0 = one beep per second)
+var BEEP_FREQUENCY = 0.5;
+
 // Radio station definitions
 var RADIO_STATIONS = {
   "http://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=96000.norewind.m3u8":

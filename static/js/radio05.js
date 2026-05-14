@@ -286,7 +286,16 @@ function stopBeepLoop() {
   }
 }
 
+function getBeepInterval() {
+  // If BEEP_FREQUENCY is defined in radiostations.js, use it
+  if (typeof BEEP_FREQUENCY !== "undefined") {
+    return Math.max(100, Math.round(1000 / BEEP_FREQUENCY));
+  }
+  return 2000; // Default: 2 seconds
+}
+
 function startIOSBeepLoop() {
+  var interval = getBeepInterval();
   beepInterval = setInterval(function () {
     beepCount++;
     if (beepCount >= 60) {
@@ -298,7 +307,7 @@ function startIOSBeepLoop() {
     } else {
       playSingleBeep();
     }
-  }, 1000);
+  }, interval);
 }
 
 function playSingleBeep() {
@@ -580,6 +589,8 @@ function playSoundIOS(url) {
   soundPlaying = true;
   updatePlayStopButton();
 
+  var beepInterval = getBeepInterval();
+
   if (url === "tone") {
     toneLoopInterval = setInterval(function () {
       if (muted || !soundPlaying) {
@@ -587,19 +598,19 @@ function playSoundIOS(url) {
         return;
       }
       playSingleBeep();
-    }, 2000); // 2000 being 2 seconds in ticks
+    }, beepInterval);
     return;
   }
 
   if (url === "beep") {
-    // Loop beep every 2 seconds
+    // Loop beep
     var beepLoop = setInterval(function () {
       if (muted || !soundPlaying) {
         clearInterval(beepLoop);
         return;
       }
       playSingleBeep();
-    }, 2000); // 2000 being 2 seconds in ticks
+    }, beepInterval);
     toneLoopInterval = beepLoop;
     return;
   }
@@ -608,7 +619,7 @@ function playSoundIOS(url) {
   audio = createAudio(url);
 
   if (url.indexOf("data:") === 0) {
-    // Simple beep - play once every 2 seconds
+    // Simple beep
     audio.loop = false;
     var simpleBeepLoop = setInterval(function () {
       if (muted || !soundPlaying) {
@@ -618,7 +629,7 @@ function playSoundIOS(url) {
       }
       audio.currentTime = 0;
       audio.play().catch(function () {});
-    }, 2000); // 2000 being 2 seconds in ticks
+    }, beepInterval);
     toneLoopInterval = simpleBeepLoop;
   } else {
     // Stream - try to play (may need user gesture on iOS)
@@ -686,19 +697,19 @@ function playSoundNonIOS(url) {
         return;
       }
       playSingleBeep();
-    }, 2000); // 2000 being 2 seconds in ticks
+    }, getBeepInterval());
     return;
   }
 
   if (url === "beep") {
-    // Loop beep every 2 seconds
+    // Loop beep
     var beepLoop = setInterval(function () {
       if (muted || !soundPlaying) {
         clearInterval(beepLoop);
         return;
       }
       playSingleBeep();
-    }, 2000); // 2000 being 2 seconds in ticks
+    }, getBeepInterval());
     // Store reference to clean up
     toneLoopInterval = beepLoop;
     return;
@@ -708,7 +719,7 @@ function playSoundNonIOS(url) {
   audio = createAudio(url);
 
   if (url.indexOf("data:") === 0) {
-    // Simple beep - play once every 2 seconds
+    // Simple beep
     audio.loop = false;
     var simpleBeepLoop = setInterval(function () {
       if (muted || !soundPlaying) {
@@ -718,7 +729,7 @@ function playSoundNonIOS(url) {
       }
       audio.currentTime = 0;
       audio.play().catch(function () {});
-    }, 2000); // 2000 being 2 seconds in ticks
+    }, getBeepInterval());
     toneLoopInterval = simpleBeepLoop;
   } else {
     // Stream - loop continuously
