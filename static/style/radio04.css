@@ -220,11 +220,13 @@ select option[disabled] {
 }
 
 .alarm-form-container {
-    display: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 2s ease-in-out;
 }
 
 .alarm-form-container.visible {
-    display: block;
+    max-height: 500px;
 }
 
 .alarm-form-buttons {

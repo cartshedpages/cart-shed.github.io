@@ -11,6 +11,8 @@ var pendingAlarmUrl = null;
 var lastAlarmedMinute = -1;
 var beepInterval = null;
 var beepCount = 0;
+var beepAudio = null;
+var toneLoopInterval = null;
 var lastInteraction = Date.now();
 var userHasInteracted = false;
 var soundPlaying = false;
@@ -80,7 +82,7 @@ function init() {
   muteBtn.addEventListener("click", toggleMute);
   playStopBtn.addEventListener("click", togglePlayStop);
 
-  hideAlarmForm();
+  alarmFormContainer.classList.remove("visible");
 
   var unlockInteraction = function () {
     userHasInteracted = true;
@@ -119,11 +121,11 @@ function updateUnlockStatus() {
 }
 
 function showAlarmForm() {
-  alarmFormContainer.style.display = "block";
+  alarmFormContainer.classList.add("visible");
 }
 
 function hideAlarmForm() {
-  alarmFormContainer.style.display = "none";
+  alarmFormContainer.classList.remove("visible");
   editingAlarmId = null;
 }
 
@@ -224,6 +226,10 @@ function createAudio(url) {
 
 function stopAllSound() {
   stopBeepLoop();
+  if (toneLoopInterval) {
+    clearInterval(toneLoopInterval);
+    toneLoopInterval = null;
+  }
   if (testAudio) {
     testAudio.pause();
     testAudio = null;
@@ -251,21 +257,17 @@ function togglePlayStop() {
   if (soundPlaying) {
     stopAllSound();
   } else {
-    soundPlaying = true;
-    updatePlayStopButton();
     // Play the selected sound or next alarm sound
     var url;
-    if (alarmFormContainer.style.display === "block") {
+    if (alarmFormContainer.classList.contains("visible")) {
       url = soundSelectEl.value;
     } else {
       var nextAlarm = getUpcomingAlarm();
       if (nextAlarm) url = nextAlarm.url;
     }
     if (url) {
+      playingAlarmId = "manual";
       playAlarmSound(url);
-    } else {
-      soundPlaying = false;
-      updatePlayStopButton();
     }
   }
 }
@@ -275,7 +277,10 @@ function stopBeepLoop() {
     clearInterval(beepInterval);
     beepInterval = null;
     beepCount = 0;
-    stopAllSound();
+  }
+  if (beepAudio) {
+    beepAudio.pause();
+    beepAudio = null;
   }
 }
 
@@ -297,32 +302,21 @@ function playSingleBeep() {
     audioCtx.resume().catch(function () {});
   }
 
-  var oscillator = audioCtx.createOscillator();
-  var gainNode = audioCtx.createGain();
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  oscillator.frequency.value = 880;
-  oscillator.type = "sine";
-  gainNode.gain.value = 0.3;
-  oscillator.start();
-  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-}
-
-function testSound() {
-  stopAllSound();
-  var url;
-
-  // If alarm form is visible, use the selected sound from form
-  if (alarmFormContainer.style.display === "block") {
-    url = getSelectedSoundUrl();
-  } else {
-    // Otherwise, get the next alarm's sound
-    var nextAlarm = getUpcomingAlarm();
-    if (nextAlarm) url = nextAlarm.url;
+  // Stop any existing oscillator
+  if (toneOscillator) {
+    toneOscillator.stop();
+    toneOscillator = null;
   }
 
-  if (!url) return;
-  playAlarmSound(url);
+  toneOscillator = audioCtx.createOscillator();
+  var gainNode = audioCtx.createGain();
+  toneOscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  toneOscillator.frequency.value = 880;
+  toneOscillator.type = "sine";
+  gainNode.gain.value = 0.3;
+  toneOscillator.start();
+  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
 }
 
 // Get the upcoming alarm object (not just display info)
@@ -445,42 +439,8 @@ function testAlarm(id) {
   if (!alarm) return;
 
   var url = alarm.url;
-  if (url === "tone") {
-    stopAllSound();
-    playingAlarmId = Date.now();
-    soundPlaying = true;
-    updatePlayStopButton();
-    var beepLoop = setInterval(function () {
-      if (muted || !playingAlarmId) {
-        clearInterval(beepLoop);
-        soundPlaying = false;
-        updatePlayStopButton();
-        return;
-      }
-      playSingleBeep();
-    }, 1000);
-    playingAlarmId = "test";
-  } else if (url === "beep") {
-    stopAllSound();
-    soundPlaying = true;
-    updatePlayStopButton();
-    playSingleBeep();
-  } else if (url.indexOf("data:") === 0) {
-    stopAllSound();
-    soundPlaying = true;
-    updatePlayStopButton();
-    audio = createAudio(url);
-    audio.loop = true;
-    audio.play();
-  } else if (userHasInteracted) {
-    stopAllSound();
-    soundPlaying = true;
-    updatePlayStopButton();
-    audio = createAudio(url);
-    audio.play();
-  } else {
-    unlockStatusEl.textContent = "Click any button first to unlock streams";
-  }
+  playingAlarmId = id;
+  playAlarmSound(url);
 }
 
 function renderAlarms() {
@@ -574,7 +534,11 @@ function checkAlarms() {
         beepCount = 0;
         soundPlaying = true;
         updatePlayStopButton();
-        // Start beeping - will work if AudioContext was created from prior gesture
+        // Use Audio element for beeps on iOS (works without user gesture for short sounds)
+        beepAudio = new Audio(
+          "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
+        );
+        beepAudio.loop = false;
         beepInterval = setInterval(function () {
           beepCount++;
           if (beepCount >= 60) {
@@ -582,7 +546,8 @@ function checkAlarms() {
             unlockStatusEl.textContent = "Alarm cancelled";
             playingAlarmId = null;
           } else {
-            playSingleBeep();
+            beepAudio.currentTime = 0;
+            beepAudio.play().catch(function () {});
           }
         }, 1000);
         return;
@@ -622,16 +587,14 @@ function checkAlarms() {
 function playAlarmSound(url) {
   if (muted || !url) return;
 
+  stopAllSound();
   soundPlaying = true;
   updatePlayStopButton();
 
   if (url === "tone") {
-    playingAlarmId = Date.now();
-    var loop = setInterval(function () {
-      if (muted || !playingAlarmId || url !== "tone") {
-        clearInterval(loop);
-        soundPlaying = false;
-        updatePlayStopButton();
+    toneLoopInterval = setInterval(function () {
+      if (muted || !playingAlarmId) {
+        stopAllSound();
         return;
       }
       playSingleBeep();
@@ -640,9 +603,6 @@ function playAlarmSound(url) {
   }
 
   if (url === "beep") {
-    stopAllSound();
-    soundPlaying = true;
-    updatePlayStopButton();
     setTimeout(playSingleBeep, 0);
     return;
   }
