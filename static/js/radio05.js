@@ -306,7 +306,14 @@ function getBeepInterval() {
 
 function startIOSBeepLoop() {
   var interval = getBeepInterval();
-  // beepCount starts at 1 (first beep played in handleIOSPendingAlarm)
+  soundPlaying = true;
+  updatePlayStopButton();
+  unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
+
+  // Ensure AudioContext is running
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume().catch(function () {});
+  }
 
   var playBeep = function () {
     beepCount++;
@@ -318,17 +325,14 @@ function startIOSBeepLoop() {
       return;
     }
 
-    // Create new Audio element for each beep (works better on iOS)
-    var beep = new Audio(
-      "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
-    );
-    beep.play().catch(function () {});
+    // Use Web Audio API for iOS beeps (works after AudioContext is created from user gesture)
+    playSingleBeep();
 
     // Schedule next beep
     beepInterval = setTimeout(playBeep, interval);
   };
 
-  // Start the beep loop for remaining 59 beeps
+  // Start the beep loop - first beep from tap gesture
   playBeep();
 }
 
@@ -588,18 +592,8 @@ function triggerAlarmIOS(alarm) {
   playingAlarmId = alarm.id;
   beepCount = 0;
 
-  if (userHasInteracted) {
-    // User has interacted before, beeps can start automatically
-    soundPlaying = true;
-    updatePlayStopButton();
-    unlockStatusEl.textContent =
-      "iOS Alarm! Beeping... Tap to stop and play stream";
-    startIOSBeepLoop();
-  } else {
-    // Need user gesture to start audio on iOS
-    unlockStatusEl.textContent =
-      "iOS Alarm! Tap to start beeps and play stream";
-  }
+  // On iOS, always require user gesture to start beeps
+  unlockStatusEl.textContent = "iOS Alarm! Tap to start beeps and play stream";
 }
 
 function handleIOSPendingAlarm() {
@@ -609,14 +603,8 @@ function handleIOSPendingAlarm() {
     updatePlayStopButton();
     unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
 
-    // Play first beep directly from tap gesture
-    var firstBeep = new Audio(
-      "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
-    );
-    firstBeep.play().catch(function () {});
-    beepCount = 1;
-
-    // Start loop for remaining beeps
+    // Start all 60 beeps from tap gesture using Web Audio API
+    beepCount = 0;
     startIOSBeepLoop();
   } else {
     // Beeps are running, tap stops them and plays stream
