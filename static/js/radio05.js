@@ -88,6 +88,15 @@ function init() {
     userHasInteracted = true;
     updateUnlockStatus();
 
+    // Initialize AudioContext on first user gesture for iOS compatibility
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        console.error("Web Audio API not supported:", e);
+      }
+    }
+
     if (pendingAlarmUrl) {
       if (isIOS) {
         handleIOSPendingAlarm();
@@ -281,6 +290,7 @@ function togglePlayStop() {
 function stopBeepLoop() {
   if (beepInterval) {
     clearInterval(beepInterval);
+    clearTimeout(beepInterval);
     beepInterval = null;
     beepCount = 0;
   }
@@ -296,18 +306,30 @@ function getBeepInterval() {
 
 function startIOSBeepLoop() {
   var interval = getBeepInterval();
-  beepInterval = setInterval(function () {
+  // beepCount starts at 1 (first beep played in handleIOSPendingAlarm)
+
+  var playBeep = function () {
     beepCount++;
     if (beepCount >= 60) {
-      stopBeepLoop();
       unlockStatusEl.textContent = "Alarm cancelled";
       playingAlarmId = null;
       soundPlaying = false;
       updatePlayStopButton();
-    } else {
-      playSingleBeep();
+      return;
     }
-  }, interval);
+
+    // Create new Audio element for each beep (works better on iOS)
+    var beep = new Audio(
+      "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
+    );
+    beep.play().catch(function () {});
+
+    // Schedule next beep
+    beepInterval = setTimeout(playBeep, interval);
+  };
+
+  // Start the beep loop for remaining 59 beeps
+  playBeep();
 }
 
 function playSingleBeep() {
@@ -563,23 +585,48 @@ function triggerAlarmIOS(alarm) {
   stopBeepLoop();
   stopAllSound();
   pendingAlarmUrl = alarm.url;
-  unlockStatusEl.textContent = "iOS Alarm! Tap to stop beeps and play stream";
   playingAlarmId = alarm.id;
   beepCount = 0;
-  soundPlaying = true;
-  updatePlayStopButton();
-  // Start 60 seconds of beeps using Web Audio API
-  startIOSBeepLoop();
+
+  if (userHasInteracted) {
+    // User has interacted before, beeps can start automatically
+    soundPlaying = true;
+    updatePlayStopButton();
+    unlockStatusEl.textContent =
+      "iOS Alarm! Beeping... Tap to stop and play stream";
+    startIOSBeepLoop();
+  } else {
+    // Need user gesture to start audio on iOS
+    unlockStatusEl.textContent =
+      "iOS Alarm! Tap to start beeps and play stream";
+  }
 }
 
 function handleIOSPendingAlarm() {
-  // Tap stops beeps and plays the stream
-  stopBeepLoop();
-  if (pendingAlarmUrl) {
-    playSoundIOS(pendingAlarmUrl);
-    pendingAlarmUrl = null;
+  // If beeps aren't running, start them
+  if (!beepInterval) {
+    soundPlaying = true;
+    updatePlayStopButton();
+    unlockStatusEl.textContent = "Beeping... Tap to stop and play stream";
+
+    // Play first beep directly from tap gesture
+    var firstBeep = new Audio(
+      "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA",
+    );
+    firstBeep.play().catch(function () {});
+    beepCount = 1;
+
+    // Start loop for remaining beeps
+    startIOSBeepLoop();
+  } else {
+    // Beeps are running, tap stops them and plays stream
+    stopBeepLoop();
+    if (pendingAlarmUrl) {
+      playSoundIOS(pendingAlarmUrl);
+      pendingAlarmUrl = null;
+    }
+    unlockStatusEl.textContent = "";
   }
-  unlockStatusEl.textContent = "";
 }
 
 function playSoundIOS(url) {
