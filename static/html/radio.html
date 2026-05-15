@@ -4,9 +4,28 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Alarm Clock</title>
-        <link rel="stylesheet" href="../style/radio05.css" />
+        <link rel="stylesheet" href="../style/radio06.css" />
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="../images/radio_favicon/apple-touch-icon.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="../images/radio_favicon/favicon-32x32.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="../images/radio_favicon/favicon-16x16.png"
+        />
+        <link rel="manifest" href="../images/radio_favicon/site.webmanifest" />
     </head>
     <body>
+        <div class="overlay" id="overlay"></div>
         <div class="container">
             <h1>Cart Shed Alarm Clock</h1>
             <div class="clock" id="clock">00:00:00</div>
@@ -39,13 +58,9 @@
                 <div class="sound-controls">
                     <select id="soundSelect">
                         <option value="">-- Select Sound --</option>
-                        <option value="tone">Tone (autoplay)</option>
+                        <option value="beep-high">Beep High (autoplay)</option>
                         <option value="beep">Beep (autoplay)</option>
-                        <option
-                            value="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA"
-                        >
-                            Simple Beep (autoplay)
-                        </option>
+                        <option value="beep-low">Beep Low (autoplay)</option>
                         <option value="---STREAMS---" disabled>
                             --- Radio (autoplay after click) ---
                         </option>
@@ -58,17 +73,17 @@
             </div>
 
             <p class="info">
-                <strong>Tip:</strong> Click "Test" or any button to unlock
+                <strong>Tip:</strong> Click "Play sound" or any button to unlock
                 autoplay for radio streams in this session.
             </p>
 
             <h2>Alarms</h2>
             <div class="alarms-list" id="alarmsList"></div>
 
-            <div id="version">v0.5.6, 14 May 2026</div>
+            <div id="version">v0.6.0, 15 May 2026</div>
         </div>
 
         <script src="../js/radiostations.js"></script>
-        <script src="../js/radio05.js"></script>
+        <script src="../js/radio06.js"></script>
     </body>
 </html>

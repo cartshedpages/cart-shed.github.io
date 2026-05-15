@@ -17,10 +17,10 @@ var RADIO_STATIONS = {
 
 // Station display names
 var STATION_NAMES = {
-  tone: "Tone",
+  "beep-high": "Beep High",
   beep: "Beep",
-  "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrLBhNjVgodDbq2EcBj+a2teleQAA":
-    "Simple Beep",
+  "beep-low": "Beep Low",
+  tone: "Tone",
 };
 
 // Merge RADIO_STATIONS into STATION_NAMES
