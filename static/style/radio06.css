@@ -17,7 +17,7 @@ body {
 body.dimmed {
     background: #000;
 }
-body.dimmed *:not(.clock):not(.clock *):not(body.dimmed) {
+body.dimmed *:not(.clock):not(.clock *):not(body.dimmed):not(.overlay) {
     color: #300 !important;
     background-color: #000;
 }
@@ -58,6 +58,7 @@ body.dimmed h2 {
     margin: 20px auto;
     width: 100%;
     max-width: 800px;
+    z-index: 1100;
 }
 .clock-small {
     font-size: 33%;
@@ -118,6 +119,10 @@ button#playStopBtn {
 }
 .overlay.visible {
     display: block;
+}
+
+body.dimmed .overlay.visible {
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .status {
